@@ -4,11 +4,9 @@
   color-scheme: light;
 }
 
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-}
+/* Tailwind preflight가 box-sizing·margin·padding 리셋을 처리한다.
+   여기에 언레이어드 `* { margin:0; padding:0 }` 를 두면 레이어드 유틸리티(px-*, mx-auto 등)를
+   덮어써 간격이 모두 무력화되므로 두지 않는다. */
 
 html,
 body {
