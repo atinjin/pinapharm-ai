@@ -21,6 +21,9 @@ type StoreState = {
   /** products in display order: matched (AI 추천) first, then the rest */
   display: StoreProduct[];
   allTags: string[];
+  /** 대화가 한 번이라도 시작됐는지 (true면 분할 레이아웃) */
+  started: boolean;
+  /** 모바일에서 결과(상품) 패널 열림 여부 */
   dockOpen: boolean;
   setDockOpen: (v: boolean) => void;
   /** ask the AI + filter the storefront like a search */
@@ -45,6 +48,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [query, setQuery] = useState<string | null>(null);
   const [matchedIds, setMatchedIds] = useState<number[]>([]);
   const [dockOpen, setDockOpen] = useState(false);
+  const [started, setStarted] = useState(false);
   const [outbound, setOutbound] = useState<{ id: number; text: string } | null>(null);
   const askSeq = useRef(0);
 
@@ -72,8 +76,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     (q: string) => {
       const text = q.trim();
       if (!text) return;
+      setStarted(true);
       setQuery(text);
-      setDockOpen(true);
       runSearch(text);
       setOutbound({ id: ++askSeq.current, text });
     },
@@ -108,6 +112,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     matchedIds,
     display,
     allTags,
+    started,
     dockOpen,
     setDockOpen,
     ask,
