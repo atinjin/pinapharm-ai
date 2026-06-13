@@ -80,7 +80,7 @@ export function AdminCsvImport({ onImported }: { onImported: () => void }) {
             <button
               onClick={submit}
               disabled={busy}
-              className="mt-3 rounded-full bg-gradient-to-r from-teal-500 to-sky-500 px-5 py-2 text-sm font-semibold text-white shadow-md shadow-sky-500/30 transition hover:opacity-90 active:scale-95 disabled:opacity-50"
+              className="mt-3 rounded-full accent px-5 py-2 text-sm font-semibold text-white shadow-md shadow-indigo-500/30 transition hover:opacity-90 active:scale-95 disabled:opacity-50"
             >
               {busy ? "등록 중…" : `${rows.length}건 일괄 등록`}
             </button>

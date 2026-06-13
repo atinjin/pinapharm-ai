@@ -101,13 +101,13 @@ export function AdminProductItem({ p, onChanged }: { p: AdminProduct; onChanged:
             />
           </label>
           <label className="flex items-center gap-1.5 pb-1.5 text-sm text-slate-600">
-            <input type="checkbox" checked={active} onChange={(e) => setActive(e.target.checked)} className="h-4 w-4 accent-teal-500" />
+            <input type="checkbox" checked={active} onChange={(e) => setActive(e.target.checked)} className="h-4 w-4 accent-indigo-500" />
             진열 활성화
           </label>
           <button
             onClick={save}
             disabled={busy}
-            className="ml-auto rounded-full bg-gradient-to-r from-teal-500 to-sky-500 px-5 py-2 text-sm font-semibold text-white shadow-md shadow-sky-500/30 transition hover:opacity-90 active:scale-95 disabled:opacity-50"
+            className="ml-auto rounded-full accent px-5 py-2 text-sm font-semibold text-white shadow-md shadow-indigo-500/30 transition hover:opacity-90 active:scale-95 disabled:opacity-50"
           >
             {busy ? "저장 중…" : "저장"}
           </button>

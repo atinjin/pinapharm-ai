@@ -20,9 +20,7 @@ export default function AdminPage() {
     <main className="mx-auto w-full max-w-3xl px-4 py-7 sm:py-10">
       <header className="mb-6 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-400 to-fuchsia-500 text-xl shadow-lg shadow-fuchsia-500/30">
-            🗂️
-          </div>
+          <span className="accent flex h-10 w-10 items-center justify-center rounded-xl text-lg text-white">🗂️</span>
           <div className="leading-tight">
             <h1 className="text-base font-extrabold tracking-tight text-slate-800">피나팜 맑은 약국 · 상품 관리</h1>
             <p className="text-xs text-slate-500">취급하는 영양제를 등록·관리합니다</p>

@@ -7,19 +7,17 @@ export default function Home() {
   return (
     <StoreProvider>
       <div className="mx-auto w-full max-w-6xl px-5 py-6 sm:px-8 sm:py-8">
-        <header className="mb-7 flex items-center justify-between gap-4">
-          <Link href="/" className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-teal-400 to-sky-500 text-xl shadow-lg shadow-sky-500/30">
-              💊
-            </div>
+        <header className="mb-8 flex items-center justify-between gap-4">
+          <Link href="/" className="flex items-center gap-2.5">
+            <span className="accent flex h-9 w-9 items-center justify-center rounded-xl text-base text-white">💊</span>
             <div className="leading-tight">
-              <p className="text-base font-extrabold tracking-tight text-slate-800">피나팜 맑은 약국</p>
-              <p className="text-xs text-slate-500">AI 영양제 상담</p>
+              <p className="text-[15px] font-bold tracking-tight text-slate-900">피나팜 맑은 약국</p>
+              <p className="text-xs text-slate-400">AI 영양제 상담</p>
             </div>
           </Link>
           <Link
             href="/admin"
-            className="glass shrink-0 rounded-full px-4 py-2 text-sm font-medium text-slate-600 transition hover:-translate-y-0.5 hover:bg-white/70"
+            className="surface surface-hover shrink-0 rounded-full px-4 py-2 text-sm font-medium text-slate-600"
           >
             약사 어드민
           </Link>

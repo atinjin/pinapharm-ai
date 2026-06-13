@@ -42,7 +42,7 @@ export function AdminProductForm({ onCreated }: { onCreated: () => void }) {
       <textarea placeholder="설명" value={form.description} onChange={set("description")} rows={2} className={field} />
       <button
         type="submit"
-        className="justify-self-start rounded-full bg-gradient-to-r from-teal-500 to-sky-500 px-6 py-2.5 text-sm font-semibold text-white shadow-md shadow-sky-500/30 transition hover:opacity-90 active:scale-95"
+        className="justify-self-start rounded-full accent px-6 py-2.5 text-sm font-semibold text-white shadow-md shadow-indigo-500/30 transition hover:opacity-90 active:scale-95"
       >
         등록하기
       </button>

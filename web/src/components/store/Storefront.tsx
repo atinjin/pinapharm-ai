@@ -17,82 +17,80 @@ export function Storefront() {
   }
 
   return (
-    <div className="flex flex-col gap-8">
-      {/* hero conversational search */}
-      <section className="glass rounded-[28px] px-6 py-9 sm:px-10 sm:py-12">
-        <div className="mx-auto max-w-xl text-center">
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-white/60 px-3.5 py-1.5 text-xs font-medium text-slate-500">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-            피나팜 맑은 약국 · AI 영양제 상담
-          </span>
-          <h1 className="mt-5 text-[26px] font-extrabold leading-tight tracking-tight text-slate-800 sm:text-3xl">
-            증상만 말하면,
-            <br className="sm:hidden" /> 맑은 약사가 골라드려요
-          </h1>
-          <p className="mx-auto mt-3 max-w-md text-sm leading-relaxed text-slate-500">
-            건강 고민을 입력하면 맞는 영양제를 진열에서 바로 찾아드립니다.
-          </p>
+    <div className="flex flex-col gap-7">
+      {/* hero search (Gemini-style) */}
+      <section className="pt-2 text-center">
+        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl">
+          <span className="spark flex h-12 w-12 items-center justify-center rounded-2xl text-2xl text-white shadow-sm">✦</span>
+        </div>
+        <h1 className="text-[26px] font-bold tracking-tight text-slate-900 sm:text-[30px]">
+          <span className="text-spark">맑은 약사</span>에게 물어보세요
+        </h1>
+        <p className="mx-auto mt-2.5 max-w-md text-[15px] leading-relaxed text-slate-500">
+          증상을 말하면 맞는 영양제를 진열에서 찾아드려요.
+        </p>
 
-          <form onSubmit={submit} className="mt-7">
-            <div className="flex flex-col gap-2 rounded-3xl border border-white/60 bg-white/80 p-2 shadow-sm transition focus-within:border-sky-300 sm:flex-row sm:items-center sm:rounded-full sm:py-2 sm:pl-6 sm:pr-2">
-              <input
-                value={text}
-                onChange={(e) => setText(e.target.value)}
-                placeholder="예: 요즘 너무 피곤해요"
-                className="min-w-0 flex-1 bg-transparent px-4 py-2.5 text-[15px] text-slate-800 outline-none placeholder:text-slate-400 sm:px-0"
-              />
-              <button
-                type="submit"
-                className="shrink-0 whitespace-nowrap rounded-full bg-gradient-to-r from-teal-500 to-sky-500 px-6 py-3 text-sm font-semibold text-white shadow-md shadow-sky-500/30 transition hover:opacity-90 active:scale-95 sm:py-2.5"
-              >
-                약사에게 묻기
-              </button>
-            </div>
-          </form>
+        <form onSubmit={submit} className="mx-auto mt-6 max-w-xl">
+          <div className="surface flex items-center gap-2 rounded-full py-2 pl-5 pr-2 transition focus-within:border-indigo-300 focus-within:shadow-md">
+            <input
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              placeholder="예: 요즘 너무 피곤해요"
+              className="min-w-0 flex-1 bg-transparent py-2 text-[15px] text-slate-800 outline-none placeholder:text-slate-400"
+            />
+            <button
+              type="submit"
+              disabled={!text.trim()}
+              aria-label="검색"
+              className="accent flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-white transition hover:opacity-90 active:scale-95 disabled:opacity-40"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="12" y1="19" x2="12" y2="5" />
+                <polyline points="5 12 12 5 19 12" />
+              </svg>
+            </button>
+          </div>
+        </form>
 
-          {/* tag filter chips */}
-          {allTags.length > 0 && (
-            <div className="mt-6 flex flex-wrap justify-center gap-2">
+        {allTags.length > 0 && (
+          <div className="mt-4 flex flex-wrap justify-center gap-2">
+            <button
+              onClick={clearSearch}
+              className={`rounded-full px-3.5 py-1.5 text-sm transition ${
+                !query ? "bg-slate-900 text-white" : "surface text-slate-600 hover:bg-slate-50"
+              }`}
+            >
+              전체
+            </button>
+            {allTags.map((t) => (
               <button
-                onClick={clearSearch}
-                className={`rounded-full px-4 py-2 text-sm transition ${
-                  !query ? "bg-slate-800 text-white shadow" : "border border-white/60 bg-white/50 text-slate-600 hover:bg-white/80"
+                key={t}
+                onClick={() => ask(t)}
+                className={`rounded-full px-3.5 py-1.5 text-sm transition ${
+                  query === t ? "accent text-white" : "surface text-slate-600 hover:bg-slate-50"
                 }`}
               >
-                전체
+                {t}
               </button>
-              {allTags.map((t) => (
-                <button
-                  key={t}
-                  onClick={() => ask(t)}
-                  className={`rounded-full px-4 py-2 text-sm transition ${
-                    query === t
-                      ? "bg-gradient-to-r from-teal-500 to-sky-500 text-white shadow"
-                      : "border border-white/60 bg-white/50 text-slate-600 hover:bg-white/80"
-                  }`}
-                >
-                  {t}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
+            ))}
+          </div>
+        )}
       </section>
 
       {/* result header */}
-      <div className="flex min-h-[28px] items-center justify-between px-1">
+      <div className="flex min-h-[24px] items-center justify-between">
         {searching ? (
           <div className="flex flex-wrap items-center gap-2.5">
-            <span className="bg-gradient-to-r from-teal-500 to-sky-500 bg-clip-text text-sm font-bold text-transparent">
-              ✦ &ldquo;{query}&rdquo; 추천 결과
+            <span className="text-[15px] font-bold text-slate-900">
+              <span className="text-spark">✦ &ldquo;{query}&rdquo;</span> 추천 결과
             </span>
-            <span className="rounded-full bg-white/60 px-2.5 py-0.5 text-xs font-medium text-slate-500">{matchedIds.length}개</span>
-            <button onClick={clearSearch} className="text-xs text-slate-400 underline-offset-2 transition hover:text-slate-600 hover:underline">
+            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500">{matchedIds.length}</span>
+            <button onClick={clearSearch} className="text-xs text-slate-400 transition hover:text-slate-700">
               전체 보기 ✕
             </button>
           </div>
         ) : (
-          <h2 className="text-sm font-semibold text-slate-600">전체 영양제</h2>
+          <h2 className="text-[15px] font-semibold text-slate-700">전체 영양제</h2>
         )}
       </div>
 
@@ -100,7 +98,7 @@ export function Storefront() {
       {loading ? (
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 sm:gap-5">
           {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="glass h-72 animate-pulse rounded-3xl opacity-60" />
+            <div key={i} className="surface h-72 animate-pulse rounded-2xl" />
           ))}
         </div>
       ) : display.length === 0 ? (
