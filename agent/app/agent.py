@@ -16,7 +16,7 @@ MAX_TURNS = 5
 
 async def run_agent_stream(messages: list[ChatMessage]) -> AsyncIterator[str]:
     client = get_client()
-    convo = [{"role": m.role, "content": m.content} for m in messages]
+    convo: list[dict] = [{"role": m.role, "content": m.content} for m in messages]
 
     for _ in range(MAX_TURNS):
         resp = await client.messages.create(
