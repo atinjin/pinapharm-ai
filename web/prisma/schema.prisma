@@ -1,0 +1,69 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model Pharmacist {
+  id        Int       @id @default(autoincrement())
+  name      String
+  products  Product[]
+  createdAt DateTime  @default(now())
+}
+
+model Product {
+  id            Int      @id @default(autoincrement())
+  pharmacist    Pharmacist @relation(fields: [pharmacistId], references: [id])
+  pharmacistId  Int
+  name          String
+  brand         String?
+  description   String?
+  price         Int
+  ingredients   String?
+  conditionTags String    @default("[]")
+  imageUrl      String?
+  stock         Int       @default(0)
+  isActive      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  recommendations Recommendation[]
+  orders          Order[]
+}
+
+model Consultation {
+  id        Int       @id @default(autoincrement())
+  sessionId String
+  messages  Message[]
+  recommendations Recommendation[]
+  createdAt DateTime  @default(now())
+}
+
+model Message {
+  id             Int          @id @default(autoincrement())
+  consultation   Consultation @relation(fields: [consultationId], references: [id])
+  consultationId Int
+  role           String
+  content        String
+  createdAt      DateTime     @default(now())
+}
+
+model Recommendation {
+  id             Int          @id @default(autoincrement())
+  consultation   Consultation @relation(fields: [consultationId], references: [id])
+  consultationId Int
+  product        Product      @relation(fields: [productId], references: [id])
+  productId      Int
+  reason         String?
+  createdAt      DateTime     @default(now())
+}
+
+model Order {
+  id        Int      @id @default(autoincrement())
+  product   Product  @relation(fields: [productId], references: [id])
+  productId Int
+  quantity  Int      @default(1)
+  status    String   @default("created")
+  createdAt DateTime @default(now())
+}
