@@ -43,23 +43,36 @@ function extractRows(data: unknown): MfdsRow[] {
 }
 
 async function fetchDataGoKr(key: string, count: number): Promise<MfdsRow[]> {
-  const base = "http://apis.data.go.kr/1471000/HtfsInfoService03/getHtfsItem01";
-  const rows: MfdsRow[] = [];
-  const perPage = 100;
-  for (let page = 1; rows.length < count; page++) {
-    const n = Math.min(perPage, count - rows.length);
-    const url = `${base}?serviceKey=${key}&pageNo=${page}&numOfRows=${n}&type=json`;
-    const res = await fetch(url);
-    const text = await res.text();
-    if (!res.ok || text.trim().startsWith("<") || /unauthorized|service key|errors/i.test(text.slice(0, 60))) {
-      throw new Error(`data.go.kr 응답 오류 (page ${page}): ${text.slice(0, 160)}`);
+  // 목록조회(getHtfsList01) 우선, 안 되면 상세정보조회(getHtfsItem01) 폴백
+  const ops = (process.env.MFDS_OP ? [process.env.MFDS_OP] : ["getHtfsList01", "getHtfsItem01"]);
+  const host = "https://apis.data.go.kr/1471000/HtfsInfoService03";
+  let lastErr = "";
+  for (const op of ops) {
+    const rows: MfdsRow[] = [];
+    const perPage = 100;
+    try {
+      for (let page = 1; rows.length < count; page++) {
+        const n = Math.min(perPage, count - rows.length);
+        const url = `${host}/${op}?serviceKey=${key}&pageNo=${page}&numOfRows=${n}&type=json`;
+        const res = await fetch(url);
+        const text = await res.text();
+        if (!res.ok || text.trim().startsWith("<") || /unauthorized|service key|errors/i.test(text.slice(0, 60))) {
+          throw new Error(`${op} 응답 오류 (page ${page}): ${text.slice(0, 160)}`);
+        }
+        const got = extractRows(JSON.parse(text));
+        if (got.length === 0) break;
+        rows.push(...got);
+        if (got.length < n) break;
+      }
+      if (rows.length > 0) {
+        console.log(`  (오퍼레이션: ${op})`);
+        return rows.slice(0, count);
+      }
+    } catch (e) {
+      lastErr = e instanceof Error ? e.message : String(e);
     }
-    const got = extractRows(JSON.parse(text));
-    if (got.length === 0) break;
-    rows.push(...got);
-    if (got.length < n) break;
   }
-  return rows.slice(0, count);
+  throw new Error(lastErr || "data.go.kr에서 데이터를 가져오지 못했습니다.");
 }
 
 async function fetchFoodSafety(key: string, count: number, service: string): Promise<MfdsRow[]> {
