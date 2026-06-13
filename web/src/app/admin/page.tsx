@@ -28,9 +28,9 @@ export default function AdminPage() {
           <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-400 to-fuchsia-500 text-xl shadow-lg shadow-fuchsia-500/30">
             🗂️
           </div>
-          <div>
-            <h1 className="text-lg font-bold tracking-tight text-slate-800">영양제 상품 관리</h1>
-            <p className="text-xs text-slate-500">약국이 취급하는 영양제를 등록·관리합니다</p>
+          <div className="leading-tight">
+            <h1 className="text-base font-extrabold tracking-tight text-slate-800">피나팜 맑은 약국 · 상품 관리</h1>
+            <p className="text-xs text-slate-500">취급하는 영양제를 등록·관리합니다</p>
           </div>
         </div>
         <Link

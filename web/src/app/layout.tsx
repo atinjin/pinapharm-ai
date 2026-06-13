@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "약사 상담 · 영양제 추천",
-  description: "약사 지식 기반 AI 상담으로 나에게 맞는 영양제를 찾아보세요.",
+  title: "피나팜 맑은 약국 · AI 영양제 상담",
+  description: "맑은 약사와 상담하고 나에게 맞는 영양제를 찾아보세요. 피나팜 맑은 약국 AI 영양제 상담.",
 };
 
 export default function RootLayout({

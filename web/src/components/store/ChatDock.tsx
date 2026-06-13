@@ -100,8 +100,8 @@ export function ChatDock() {
                 💊
               </div>
               <div>
-                <p className="text-sm font-bold leading-tight text-slate-800">AI 약사 상담</p>
-                <p className="text-[11px] text-slate-400">증상을 말하면 진열에서 찾아드려요</p>
+                <p className="text-sm font-bold leading-tight text-slate-800">맑은 약사</p>
+                <p className="text-[11px] text-slate-400">피나팜 맑은 약국 · AI 상담</p>
               </div>
             </div>
             <button onClick={() => setDockOpen(false)} className="rounded-full px-2 py-1 text-slate-400 hover:bg-white/60 lg:hidden">
@@ -112,12 +112,15 @@ export function ChatDock() {
           {/* messages */}
           <div className="scroll-soft flex-1 space-y-3 overflow-y-auto px-3.5 py-4">
             {empty && (
-              <div className="flex h-full flex-col items-center justify-center px-4 text-center">
-                <p className="text-sm font-semibold text-slate-700">안녕하세요, 약사입니다 👋</p>
-                <p className="mt-1 text-xs leading-relaxed text-slate-500">
+              <div className="flex h-full flex-col items-center justify-center px-5 text-center">
+                <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-teal-400 to-sky-500 text-2xl shadow-lg shadow-sky-500/30">
+                  💊
+                </div>
+                <p className="text-sm font-semibold text-slate-700">안녕하세요, 맑은 약사입니다 👋</p>
+                <p className="mt-1.5 text-xs leading-relaxed text-slate-500">
                   건강 고민을 말씀해 주시면 상담하고,
                   <br />
-                  맞는 영양제를 왼쪽 진열에서 찾아드려요.
+                  맞는 영양제를 진열에서 찾아드려요.
                 </p>
               </div>
             )}
