@@ -96,15 +96,15 @@ export function Storefront() {
 
       {/* grid */}
       {loading ? (
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 sm:gap-5">
+        <div className="grid grid-cols-2 gap-x-5 gap-y-9 sm:grid-cols-3">
           {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="surface h-72 animate-pulse rounded-2xl" />
+            <div key={i} className="aspect-square animate-pulse rounded-[20px] bg-slate-100" />
           ))}
         </div>
       ) : display.length === 0 ? (
         <p className="py-16 text-center text-sm text-slate-400">등록된 영양제가 없습니다.</p>
       ) : (
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 sm:gap-5">
+        <div className="grid grid-cols-2 gap-x-5 gap-y-9 sm:grid-cols-3">
           {display.map((p) => (
             <ProductCard key={p.id} p={p} recommended={searching && matched.has(p.id)} />
           ))}
