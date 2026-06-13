@@ -6,7 +6,8 @@ import { ChatDock } from "@/components/store/ChatDock";
 export default function Home() {
   return (
     <StoreProvider>
-      <div className="mx-auto w-full max-w-6xl px-6 py-7 sm:px-10 sm:py-9 lg:px-16 xl:px-20">
+      {/* MUI Container(lg)풍: 중앙 정렬 + 반응형 거터 */}
+      <div className="mx-auto w-full max-w-[1200px] px-4 py-7 sm:px-6 sm:py-9">
         <header className="mb-8 flex items-center justify-between gap-4">
           <Link href="/" className="flex items-center gap-2.5">
             <span className="accent flex h-9 w-9 items-center justify-center rounded-xl text-base text-white">💊</span>
