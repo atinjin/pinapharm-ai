@@ -66,9 +66,12 @@ function trunc(s: string | undefined, n: number): string | undefined {
 export function mapMfdsRow(row: MfdsRow): MappedProduct | null {
   const name = pick(row, ["PRDLST_NM", "PRDUCT", "PRODUCT"]);
   if (!name) return null;
-  const fnclty = pick(row, ["PRIMARY_FNCLTY", "INDIV_RAWMTRL_NM", "MAIN_FNCLTY"]);
+  // B2B 원료성·수출 전용 항목 제외 (국내 소비자 완제품만)
+  if ((pick(row, ["SRV_USE"]) ?? "").includes("원료")) return null;
+  if (/수출/.test(name)) return null;
+  const fnclty = pick(row, ["MAIN_FNCTN", "PRIMARY_FNCLTY", "MAIN_FNCLTY", "INDIV_RAWMTRL_NM"]);
   const brand = pick(row, ["BSSH_NM", "ENTRPS", "ENTRPS_NM"]);
-  const ingredients = pick(row, ["RAWMTRL_NM", "STDR_STND", "SUNGSANG", "RAWMTRL"]);
+  const ingredients = pick(row, ["RAWMTRL_NM", "SUNGSANG", "BASE_STANDARD", "STDR_STND"]);
   return {
     name,
     brand: trunc(brand, 60),

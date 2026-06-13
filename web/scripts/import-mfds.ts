@@ -44,7 +44,8 @@ function extractRows(data: unknown): MfdsRow[] {
 
 async function fetchDataGoKr(key: string, count: number): Promise<MfdsRow[]> {
   // 목록조회(getHtfsList01) 우선, 안 되면 상세정보조회(getHtfsItem01) 폴백
-  const ops = (process.env.MFDS_OP ? [process.env.MFDS_OP] : ["getHtfsList01", "getHtfsItem01"]);
+  // getHtfsItem01(상세조회)이 기능성 등 풍부한 필드 제공 → 우선 사용
+  const ops = (process.env.MFDS_OP ? [process.env.MFDS_OP] : ["getHtfsItem01", "getHtfsList01"]);
   const host = "https://apis.data.go.kr/1471000/HtfsInfoService03";
   let lastErr = "";
   for (const op of ops) {
