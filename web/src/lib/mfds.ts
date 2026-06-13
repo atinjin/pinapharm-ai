@@ -2,14 +2,18 @@
 // C003 주요 필드: PRDLST_NM(제품명), BSSH_NM(업소명), RAWMTRL_NM(원재료),
 //                 PRIMARY_FNCLTY(주된 기능성), NTK_MTHD(섭취방법)
 
+// foodsafetykorea(C003) / data.go.kr(HtfsInfoService03) 필드명이 다르므로 둘 다 수용한다.
 export type MfdsRow = {
-  PRDLST_NM?: string;
-  BSSH_NM?: string;
-  RAWMTRL_NM?: string;
-  PRIMARY_FNCLTY?: string;
-  NTK_MTHD?: string;
   [key: string]: unknown;
 };
+
+function pick(row: MfdsRow, names: string[]): string | undefined {
+  for (const n of names) {
+    const v = row[n];
+    if (typeof v === "string" && v.trim()) return v.trim();
+  }
+  return undefined;
+}
 
 export type MappedProduct = {
   name: string;
@@ -60,15 +64,17 @@ function trunc(s: string | undefined, n: number): string | undefined {
  * 제품명이 없으면 null 을 반환한다.
  */
 export function mapMfdsRow(row: MfdsRow): MappedProduct | null {
-  const name = (row.PRDLST_NM ?? "").trim();
+  const name = pick(row, ["PRDLST_NM", "PRDUCT", "PRODUCT"]);
   if (!name) return null;
-  const fnclty = typeof row.PRIMARY_FNCLTY === "string" ? row.PRIMARY_FNCLTY : undefined;
+  const fnclty = pick(row, ["PRIMARY_FNCLTY", "INDIV_RAWMTRL_NM", "MAIN_FNCLTY"]);
+  const brand = pick(row, ["BSSH_NM", "ENTRPS", "ENTRPS_NM"]);
+  const ingredients = pick(row, ["RAWMTRL_NM", "STDR_STND", "SUNGSANG", "RAWMTRL"]);
   return {
     name,
-    brand: trunc(row.BSSH_NM, 60),
+    brand: trunc(brand, 60),
     price: 0,
     stock: 0,
-    ingredients: trunc(row.RAWMTRL_NM, 200),
+    ingredients: trunc(ingredients, 200),
     conditionTags: deriveTags(`${fnclty ?? ""} ${name}`),
     description: trunc(fnclty, 300),
     isActive: false,
