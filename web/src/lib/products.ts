@@ -28,3 +28,34 @@ export async function searchProducts(opts: { condition?: string; keyword?: strin
   if (terms.length === 0) return all;
   return all.filter((p) => terms.some((t) => matchesQuery(p, t)));
 }
+
+export async function listProducts() {
+  return prisma.product.findMany({ orderBy: { createdAt: "desc" } });
+}
+
+export async function createProduct(input: {
+  name: string; price: number; pharmacistId: number;
+  brand?: string; description?: string; ingredients?: string;
+  conditionTags?: string[]; imageUrl?: string; stock?: number;
+}) {
+  const { conditionTags, ...rest } = input;
+  return prisma.product.create({
+    data: { ...rest, conditionTags: stringifyTags(conditionTags ?? []) },
+  });
+}
+
+export async function updateProduct(id: number, input: {
+  name?: string; price?: number; brand?: string; description?: string;
+  ingredients?: string; conditionTags?: string[]; imageUrl?: string;
+  stock?: number; isActive?: boolean;
+}) {
+  const { conditionTags, ...rest } = input;
+  return prisma.product.update({
+    where: { id },
+    data: { ...rest, ...(conditionTags ? { conditionTags: stringifyTags(conditionTags) } : {}) },
+  });
+}
+
+export async function deleteProduct(id: number) {
+  return prisma.product.delete({ where: { id } });
+}
