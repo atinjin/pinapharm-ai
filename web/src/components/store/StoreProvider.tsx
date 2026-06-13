@@ -10,6 +10,7 @@ export type StoreProduct = {
   ingredients?: string | null;
   conditionTags?: string[];
   stock?: number;
+  imageUrl?: string | null;
 };
 
 type StoreState = {

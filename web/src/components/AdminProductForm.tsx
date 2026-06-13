@@ -2,7 +2,7 @@
 import { useState } from "react";
 
 export function AdminProductForm({ onCreated }: { onCreated: () => void }) {
-  const [form, setForm] = useState({ name: "", price: "", brand: "", description: "", ingredients: "", conditionTags: "", stock: "" });
+  const [form, setForm] = useState({ name: "", price: "", brand: "", description: "", ingredients: "", conditionTags: "", stock: "", imageUrl: "" });
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -17,9 +17,10 @@ export function AdminProductForm({ onCreated }: { onCreated: () => void }) {
         ingredients: form.ingredients || undefined,
         conditionTags: form.conditionTags ? form.conditionTags.split(",").map((s) => s.trim()).filter(Boolean) : [],
         stock: Number(form.stock || 0),
+        imageUrl: form.imageUrl || undefined,
       }),
     });
-    setForm({ name: "", price: "", brand: "", description: "", ingredients: "", conditionTags: "", stock: "" });
+    setForm({ name: "", price: "", brand: "", description: "", ingredients: "", conditionTags: "", stock: "", imageUrl: "" });
     onCreated();
   }
 
@@ -38,6 +39,7 @@ export function AdminProductForm({ onCreated }: { onCreated: () => void }) {
         <input type="number" placeholder="재고" value={form.stock} onChange={set("stock")} className={field} />
         <input placeholder="성분" value={form.ingredients} onChange={set("ingredients")} className={`${field} sm:col-span-2`} />
         <input placeholder="적용 증상 태그 (쉼표로 구분)" value={form.conditionTags} onChange={set("conditionTags")} className={`${field} sm:col-span-2`} />
+        <input placeholder="이미지 URL (https://…)" value={form.imageUrl} onChange={set("imageUrl")} className={`${field} sm:col-span-2`} />
       </div>
       <textarea placeholder="설명" value={form.description} onChange={set("description")} rows={2} className={field} />
       <button

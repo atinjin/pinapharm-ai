@@ -10,6 +10,7 @@ export type CsvProductRow = {
   ingredients?: string;
   conditionTags: string[];
   description?: string;
+  imageUrl?: string;
 };
 
 export type CsvParseResult = {
@@ -60,7 +61,7 @@ export function parseCsv(text: string): string[][] {
   return rows;
 }
 
-const HEADERS = ["name", "brand", "price", "stock", "ingredients", "conditiontags", "description"];
+const HEADERS = ["name", "brand", "price", "stock", "ingredients", "conditiontags", "description", "imageurl"];
 
 /** 헤더가 있는 CSV 텍스트를 상품 행으로 변환한다. */
 export function parseProductCsv(text: string): CsvParseResult {
@@ -116,12 +117,13 @@ export function parseProductCsv(text: string): CsvParseResult {
       ingredients: get("ingredients") || undefined,
       conditionTags,
       description: get("description") || undefined,
+      imageUrl: get("imageurl") || undefined,
     });
   }
   return result;
 }
 
-export const SAMPLE_CSV = `name,brand,price,stock,ingredients,conditionTags,description
-"종근당 락토핏 골드",종근당,12900,80,"유산균 19종",장건강;소화,"장 건강을 위한 프로바이오틱스"
-"고려은단 비타민C 1000",고려은단,18000,50,"비타민C 1000mg",피로;면역,"피로 회복과 면역에 도움"
-"뉴트리디데이 루테인",뉴트리디데이,21000,40,"루테인 20mg",눈건강,"눈 건강과 황반 보호"`;
+export const SAMPLE_CSV = `name,brand,price,stock,ingredients,conditionTags,description,imageUrl
+"종근당 락토핏 골드",종근당,12900,80,"유산균 19종",장건강;소화,"장 건강을 위한 프로바이오틱스",
+"고려은단 비타민C 1000",고려은단,18000,50,"비타민C 1000mg",피로;면역,"피로 회복과 면역에 도움",
+"뉴트리디데이 루테인",뉴트리디데이,21000,40,"루테인 20mg",눈건강,"눈 건강과 황반 보호",`;

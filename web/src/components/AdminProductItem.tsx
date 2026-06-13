@@ -9,6 +9,7 @@ export type AdminProduct = {
   stock: number;
   conditionTags: string;
   isActive: boolean;
+  imageUrl: string | null;
 };
 
 export function AdminProductItem({ p, onChanged }: { p: AdminProduct; onChanged: () => void }) {
@@ -16,6 +17,7 @@ export function AdminProductItem({ p, onChanged }: { p: AdminProduct; onChanged:
   const [price, setPrice] = useState(String(p.price));
   const [stock, setStock] = useState(String(p.stock));
   const [active, setActive] = useState(p.isActive);
+  const [imageUrl, setImageUrl] = useState(p.imageUrl ?? "");
   const [busy, setBusy] = useState(false);
   const tags = (JSON.parse(p.conditionTags || "[]") as string[]) ?? [];
 
@@ -24,7 +26,7 @@ export function AdminProductItem({ p, onChanged }: { p: AdminProduct; onChanged:
     await fetch(`/api/products/${p.id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ price: Number(price || 0), stock: Number(stock || 0), isActive: active }),
+      body: JSON.stringify({ price: Number(price || 0), stock: Number(stock || 0), isActive: active, imageUrl: imageUrl || undefined }),
     });
     setBusy(false);
     setEditing(false);
@@ -39,7 +41,12 @@ export function AdminProductItem({ p, onChanged }: { p: AdminProduct; onChanged:
   return (
     <li className={`glass rounded-2xl p-4 transition ${!p.isActive ? "opacity-60" : ""}`}>
       <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
+        <div className="flex min-w-0 gap-3">
+          {p.imageUrl && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={p.imageUrl} alt="" className="h-12 w-12 shrink-0 rounded-lg border border-slate-200 object-cover" />
+          )}
+          <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-1.5">
             <p className="truncate font-semibold text-slate-800">{p.name}</p>
             {p.brand && <span className="text-sm font-normal text-slate-400">· {p.brand}</span>}
@@ -63,6 +70,7 @@ export function AdminProductItem({ p, onChanged }: { p: AdminProduct; onChanged:
               ))}
             </div>
           )}
+          </div>
         </div>
         <div className="flex shrink-0 gap-2">
           <button
@@ -103,6 +111,15 @@ export function AdminProductItem({ p, onChanged }: { p: AdminProduct; onChanged:
           <label className="flex items-center gap-1.5 pb-1.5 text-sm text-slate-600">
             <input type="checkbox" checked={active} onChange={(e) => setActive(e.target.checked)} className="h-4 w-4 accent-indigo-500" />
             진열 활성화
+          </label>
+          <label className="w-full text-xs text-slate-500">
+            이미지 URL
+            <input
+              value={imageUrl}
+              onChange={(e) => setImageUrl(e.target.value)}
+              placeholder="https://…"
+              className="mt-1 block w-full rounded-lg border border-white/60 bg-white/80 px-3 py-1.5 text-sm text-slate-800 outline-none focus:border-sky-300"
+            />
           </label>
           <button
             onClick={save}

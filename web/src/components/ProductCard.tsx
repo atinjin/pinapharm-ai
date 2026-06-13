@@ -29,11 +29,20 @@ export function ProductCard({ p, recommended }: { p: StoreProduct; recommended?:
         style={{ backgroundColor: tile }}
       >
         {recommended && (
-          <span className="absolute left-3 top-3 inline-flex items-center gap-1 rounded-full bg-white/85 px-2 py-0.5 text-[11px] font-semibold text-slate-700 backdrop-blur">
+          <span className="absolute left-3 top-3 z-10 inline-flex items-center gap-1 rounded-full bg-white/85 px-2 py-0.5 text-[11px] font-semibold text-slate-700 backdrop-blur">
             <span className="text-spark">✦</span> AI 추천
           </span>
         )}
-        <span className="text-[64px] transition-transform duration-300 group-hover:scale-105">💊</span>
+        {p.imageUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={p.imageUrl}
+            alt={p.name}
+            className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+          />
+        ) : (
+          <span className="text-[64px] transition-transform duration-300 group-hover:scale-105">💊</span>
+        )}
       </div>
 
       {/* meta */}

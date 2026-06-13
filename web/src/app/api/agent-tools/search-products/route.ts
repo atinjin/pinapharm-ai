@@ -17,6 +17,7 @@ export async function GET(req: NextRequest) {
       ingredients: p.ingredients,
       conditionTags: parseTags(p.conditionTags),
       stock: p.stock,
+      imageUrl: p.imageUrl,
     }))
   );
 }
