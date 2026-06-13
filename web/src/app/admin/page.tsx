@@ -2,11 +2,11 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { AdminProductForm } from "@/components/AdminProductForm";
-
-type Product = { id: number; name: string; brand: string | null; price: number; stock: number; conditionTags: string; isActive: boolean };
+import { AdminCsvImport } from "@/components/AdminCsvImport";
+import { AdminProductItem, type AdminProduct } from "@/components/AdminProductItem";
 
 export default function AdminPage() {
-  const [products, setProducts] = useState<Product[]>([]);
+  const [products, setProducts] = useState<AdminProduct[]>([]);
 
   async function load() {
     const res = await fetch("/api/products");
@@ -15,11 +15,6 @@ export default function AdminPage() {
   useEffect(() => {
     load();
   }, []);
-
-  async function remove(id: number) {
-    await fetch(`/api/products/${id}`, { method: "DELETE" });
-    load();
-  }
 
   return (
     <main className="mx-auto w-full max-w-3xl px-4 py-7 sm:py-10">
@@ -41,9 +36,15 @@ export default function AdminPage() {
         </Link>
       </header>
 
-      <section className="glass mb-6 rounded-3xl p-5 sm:p-6">
+      <section className="glass mb-5 rounded-3xl p-5 sm:p-6">
         <h2 className="mb-4 text-sm font-semibold text-slate-600">새 영양제 등록</h2>
         <AdminProductForm onCreated={load} />
+      </section>
+
+      <section className="glass mb-6 rounded-3xl p-5 sm:p-6">
+        <h2 className="mb-1 text-sm font-semibold text-slate-600">CSV 일괄 등록</h2>
+        <p className="mb-4 text-xs text-slate-400">엑셀에서 CSV로 저장한 실제 취급 품목을 한 번에 등록합니다.</p>
+        <AdminCsvImport onImported={load} />
       </section>
 
       <div className="mb-3 flex items-center justify-between px-1">
@@ -53,31 +54,7 @@ export default function AdminPage() {
 
       <ul className="grid gap-3">
         {products.map((p) => (
-          <li key={p.id} className="glass flex items-center justify-between gap-3 rounded-2xl p-4">
-            <div className="min-w-0">
-              <p className="truncate font-semibold text-slate-800">
-                {p.name}
-                {p.brand && <span className="ml-1.5 text-sm font-normal text-slate-400">· {p.brand}</span>}
-              </p>
-              <p className="mt-0.5 text-sm text-slate-500">
-                <span className="font-medium text-slate-700">{p.price.toLocaleString()}원</span>
-                <span className="text-slate-300"> · </span>재고 {p.stock}
-              </p>
-              <div className="mt-1.5 flex flex-wrap gap-1.5">
-                {(JSON.parse(p.conditionTags || "[]") as string[]).map((t) => (
-                  <span key={t} className="rounded-full bg-teal-50 px-2 py-0.5 text-xs text-teal-700">
-                    {t}
-                  </span>
-                ))}
-              </div>
-            </div>
-            <button
-              onClick={() => remove(p.id)}
-              className="shrink-0 rounded-full border border-rose-200 bg-rose-50 px-3 py-1.5 text-sm font-medium text-rose-600 transition hover:bg-rose-100 active:scale-95"
-            >
-              삭제
-            </button>
-          </li>
+          <AdminProductItem key={p.id} p={p} onChanged={load} />
         ))}
       </ul>
     </main>

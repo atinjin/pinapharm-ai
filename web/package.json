@@ -9,6 +9,7 @@
     "lint": "eslint",
     "test": "vitest run",
     "seed": "tsx prisma/seed.ts",
+    "import:mfds": "tsx scripts/import-mfds.ts",
     "db:reset": "prisma migrate reset --force"
   },
   "dependencies": {

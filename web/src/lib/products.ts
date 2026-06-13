@@ -59,3 +59,36 @@ export async function updateProduct(id: number, input: {
 export async function deleteProduct(id: number) {
   return prisma.product.delete({ where: { id } });
 }
+
+export type BulkProductInput = {
+  name: string;
+  price: number;
+  brand?: string;
+  description?: string;
+  ingredients?: string;
+  conditionTags?: string[];
+  imageUrl?: string;
+  stock?: number;
+  isActive?: boolean;
+};
+
+/** 여러 상품을 한 번에 등록한다. 행 단위 실패는 모아서 보고한다. */
+export async function createManyProducts(
+  inputs: BulkProductInput[],
+  pharmacistId = 1
+): Promise<{ created: number; failed: { index: number; name: string; message: string }[] }> {
+  let created = 0;
+  const failed: { index: number; name: string; message: string }[] = [];
+  for (let i = 0; i < inputs.length; i++) {
+    const { conditionTags, ...rest } = inputs[i];
+    try {
+      await prisma.product.create({
+        data: { ...rest, pharmacistId, conditionTags: stringifyTags(conditionTags ?? []) },
+      });
+      created++;
+    } catch (e) {
+      failed.push({ index: i, name: inputs[i].name, message: e instanceof Error ? e.message : "unknown" });
+    }
+  }
+  return { created, failed };
+}

@@ -53,7 +53,32 @@ uvicorn app.main:app --reload --port 8000
 
 - **상담 채팅**: http://localhost:3000 — 건강 고민을 입력하면 약사 에이전트가 상담하고,
   취급 영양제를 추천합니다. 추천 카드의 "구매"로 주문(프로토타입: 결제 없이 기록)됩니다.
-- **약사 어드민**: http://localhost:3000/admin — 영양제 등록/삭제/목록.
+- **약사 어드민**: http://localhost:3000/admin — 영양제 등록/수정/삭제, 가격·재고·진열 활성화.
+
+## 실제 영양제 데이터 넣기
+
+세 가지 방법을 지원합니다.
+
+### 1) 어드민 단건 등록
+`/admin`의 "새 영양제 등록" 폼.
+
+### 2) CSV 일괄 등록 (외부 키 불필요)
+`/admin`의 "CSV 일괄 등록"에서 엑셀로 만든 CSV를 업로드. "샘플 CSV 다운로드"로 양식을 받을 수 있습니다.
+- 헤더: `name, brand, price, stock, ingredients, conditionTags, description`
+- `conditionTags`는 셀 안에서 `;`로 구분 (예: `장건강;소화`)
+
+### 3) 식약처 공공 API import (실제 제품 마스터 자동 적재)
+식품안전나라 건강기능식품 품목제조신고(C003) OpenAPI에서 실제 제품을 가져옵니다.
+```bash
+# 1. 무료 인증키 발급: https://www.foodsafetykorea.go.kr/api/openApiInfo.do?svc_no=C003
+# 2. web/.env 에  MFDS_API_KEY="발급키"  추가
+cd web
+npm run import:mfds -- 50 --dry-run   # 적재 없이 미리보기
+npm run import:mfds -- 100            # 100건 적재
+```
+> 가져온 제품은 **가격 0 · 비활성(isActive=false)** 상태로 들어가 진열에 노출되지 않습니다.
+> 약사가 `/admin`에서 각 항목의 "수정"으로 가격·재고를 정하고 "진열 활성화"하면 노출됩니다.
+> 기능성 문구에서 증상 태그(피로·눈건강 등)를 자동 추론합니다.
 
 ## 테스트
 
