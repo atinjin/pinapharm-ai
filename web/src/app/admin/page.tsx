@@ -17,7 +17,7 @@ export default function AdminPage() {
   }, []);
 
   return (
-    <main className="mx-auto w-full max-w-3xl px-4 py-7 sm:py-10">
+    <main className="mx-auto w-full max-w-3xl px-6 py-7 sm:px-8 sm:py-10">
       <header className="mb-6 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <span className="accent flex h-10 w-10 items-center justify-center rounded-xl text-lg text-white">🗂️</span>
