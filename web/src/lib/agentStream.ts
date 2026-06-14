@@ -2,10 +2,11 @@
 export function extractFromSSE(raw: string): { text: string; ids: number[] } {
   let text = "";
   const ids: number[] = [];
-  for (const frame of raw.split("\n\n")) {
+  // SSE 프레임은 빈 줄로 구분된다 (sse-starlette는 \r\n\r\n 사용)
+  for (const frame of raw.split(/\r?\n\r?\n/)) {
     let event = "message";
     const dataLines: string[] = [];
-    for (const line of frame.split("\n")) {
+    for (const line of frame.split(/\r?\n/)) {
       if (line.startsWith("event:")) event = line.slice(6).trim();
       else if (line.startsWith("data:")) dataLines.push(line.slice(5).trim());
     }
