@@ -4,6 +4,8 @@ from collections.abc import AsyncIterator
 
 from langchain_core.messages import HumanMessage
 
+from app.redaction import redact_pii
+
 logger = logging.getLogger("agent.stream")
 
 _STREAM_NODES = {"agent", "finalize"}
@@ -22,7 +24,7 @@ def _text_of(content) -> str:
 async def stream_events(graph, message: str, session_id: str) -> AsyncIterator[dict]:
     """그래프 실행을 SSE 이벤트 dict({event, data}) 스트림으로 변환한다."""
     config = {"configurable": {"thread_id": session_id}}
-    inp = {"messages": [HumanMessage(content=message)], "recommended_ids": [], "tool_turns": 0}
+    inp = {"messages": [HumanMessage(content=redact_pii(message))], "recommended_ids": [], "tool_turns": 0}
     try:
         async for mode, chunk in graph.astream(inp, config, stream_mode=["messages", "custom"]):
             if mode == "messages":
