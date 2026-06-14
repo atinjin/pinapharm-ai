@@ -15,7 +15,12 @@ export function ChatPanel() {
   const endRef = useRef<HTMLDivElement>(null);
   const lastAsk = useRef(0);
   const sessionId = useRef<string>("");
-  if (!sessionId.current) sessionId.current = crypto.randomUUID();
+  if (!sessionId.current) {
+    const stored = typeof window !== "undefined" ? localStorage.getItem("pham_session_id") : null;
+    const newId = stored ?? crypto.randomUUID();
+    if (!stored && typeof window !== "undefined") localStorage.setItem("pham_session_id", newId);
+    sessionId.current = newId;
+  }
 
   useEffect(() => {
     msgsRef.current = messages;
