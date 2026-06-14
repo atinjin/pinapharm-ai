@@ -84,3 +84,36 @@ async def test_turn_limit_routes_to_finalize():
         events = await _collect(graph, "계속 검색해줘")
     final = [c for m, c in events if m == "values"][-1]
     assert "정리해드리면" in final["messages"][-1].content
+
+
+async def test_get_health_profile_dispatch_injects_session_id():
+    from unittest.mock import AsyncMock as _AM, patch as _patch
+    fake_model = _model([
+        _ai(tool_calls=[{"name": "get_health_profile", "args": {}, "id": "h1", "type": "tool_call"}]),
+        _ai(text="프로필을 확인했어요."),
+    ])
+    fetch = _AM(return_value={"conditions": ["고혈압"]})
+    with _patch("app.triage.classify", new=_AM(return_value="normal")), \
+         _patch("app.graph._chat_model", return_value=fake_model), \
+         _patch("app.graph._fetch_health_profile", new=fetch):
+        graph = build_graph(MemorySaver())
+        await _collect(graph, "상담 시작할게요")
+    fetch.assert_awaited_once()
+    assert fetch.await_args.args[0] == "s1"  # thread_id == session_id 주입
+
+
+async def test_save_health_profile_dispatch_passes_fields():
+    from unittest.mock import AsyncMock as _AM, patch as _patch
+    fake_model = _model([
+        _ai(tool_calls=[{"name": "save_health_profile", "args": {"medications": ["혈압약"]}, "id": "s1", "type": "tool_call"}]),
+        _ai(text="기록했어요."),
+    ])
+    save = _AM(return_value={"medications": ["혈압약"]})
+    with _patch("app.triage.classify", new=_AM(return_value="normal")), \
+         _patch("app.graph._chat_model", return_value=fake_model), \
+         _patch("app.graph._save_health_profile", new=save):
+        graph = build_graph(MemorySaver())
+        await _collect(graph, "혈압약 먹고 있어요")
+    save.assert_awaited_once()
+    assert save.await_args.args[0] == "s1"
+    assert save.await_args.kwargs.get("medications") == ["혈압약"]

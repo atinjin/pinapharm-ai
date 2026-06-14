@@ -38,6 +38,8 @@ model Consultation {
   sessionId String
   messages  Message[]
   recommendations Recommendation[]
+  customer        Customer? @relation(fields: [customerId], references: [id])
+  customerId      Int?
   createdAt DateTime  @default(now())
 }
 
@@ -67,4 +69,39 @@ model Order {
   quantity  Int      @default(1)
   status    String   @default("created")
   createdAt DateTime @default(now())
+}
+
+model Customer {
+  id            Int            @id @default(autoincrement())
+  identities    Identity[]
+  healthProfile HealthProfile?
+  consultations Consultation[]
+  createdAt     DateTime       @default(now())
+}
+
+model Identity {
+  id                Int      @id @default(autoincrement())
+  provider          String
+  providerAccountId String
+  customer          Customer @relation(fields: [customerId], references: [id])
+  customerId        Int
+  createdAt         DateTime @default(now())
+
+  @@unique([provider, providerAccountId])
+  @@index([customerId])
+}
+
+model HealthProfile {
+  id          Int      @id @default(autoincrement())
+  customer    Customer @relation(fields: [customerId], references: [id])
+  customerId  Int      @unique
+  ageBand     String?
+  sex         String?
+  conditions  String   @default("[]")
+  medications String   @default("[]")
+  allergies   String   @default("[]")
+  pregnancy   String?
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
