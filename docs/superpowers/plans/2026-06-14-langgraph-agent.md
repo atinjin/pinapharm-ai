@@ -197,13 +197,6 @@ from langchain_core.messages import AIMessage
 from app.triage import classify
 
 
-async def _run(label):
-    fake = AsyncMock()
-    fake.ainvoke = AsyncMock(return_value=AIMessage(content=label))
-    with patch("app.triage._model", return_value=fake):
-        return await classify("증상 설명")
-
-
 async def test_classify_emergency():
     assert await classify_with("emergency") == "emergency"
 
