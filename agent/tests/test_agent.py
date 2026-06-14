@@ -1,50 +1,42 @@
 import json
 from unittest.mock import AsyncMock, MagicMock, patch
-from app.agent import run_agent_stream, RECO_MARKER
-from app.schemas import ChatMessage
+from langchain_core.messages import AIMessage, HumanMessage
+from langgraph.checkpoint.memory import MemorySaver
+from app.agent import stream_events
+from app.graph import build_graph
 
-class FakeBlock:
-    def __init__(self, type, text=None, name=None, input=None, id=None):
-        self.type = type; self.text = text; self.name = name; self.input = input; self.id = id
 
-class FakeResponse:
-    def __init__(self, content, stop_reason):
-        self.content = content; self.stop_reason = stop_reason
+def _ai(text="", tool_calls=None):
+    return AIMessage(content=text, tool_calls=tool_calls or [])
 
-class FakeStream:
-    def __init__(self, response):
-        self._response = response
-    async def __aenter__(self):
-        return self
-    async def __aexit__(self, *exc):
-        return False
-    @property
-    def text_stream(self):
-        return self._iter_text()
-    async def _iter_text(self):
-        for b in self._response.content:
-            if b.type == "text":
-                yield b.text
-    async def get_final_message(self):
-        return self._response
 
-async def test_agent_runs_tool_then_answers():
-    # 1차: 도구 호출, 2차: 최종 텍스트
-    responses = iter([
-        FakeResponse([FakeBlock("tool_use", name="search_products", input={"condition": "피로"}, id="t1")], "tool_use"),
-        FakeResponse([FakeBlock("text", text="비타민C를 추천드려요.")], "end_turn"),
+def _model(calls):
+    m = AsyncMock()
+    m.ainvoke = AsyncMock(side_effect=calls)
+    m.bind_tools = MagicMock(return_value=m)
+    return m
+
+
+async def test_stream_events_emits_recommendations_and_done():
+    fake_model = _model([
+        _ai(tool_calls=[{"name": "search_products", "args": {"condition": "피로"}, "id": "t1", "type": "tool_call"}]),
+        _ai(text="비타민C를 추천드려요."),
     ])
-    fake_client = AsyncMock()
-    fake_client.messages.stream = MagicMock(side_effect=lambda **kw: FakeStream(next(responses)))
+    with patch("app.triage.classify", new=AsyncMock(return_value="normal")), \
+         patch("app.graph._chat_model", return_value=fake_model), \
+         patch("app.graph._fetch_products", new=AsyncMock(return_value=[{"id": 1, "name": "비타민C"}])):
+        graph = build_graph(MemorySaver())
+        events = [e async for e in stream_events(graph, "피곤해요", "s1")]
+    types = [e["event"] for e in events]
+    assert "recommendations" in types
+    assert types[-1] == "done"
+    rec = json.loads(next(e["data"] for e in events if e["event"] == "recommendations"))
+    assert rec["ids"] == [1]
 
-    with patch("app.agent.get_client", return_value=fake_client), \
-         patch("app.agent.run_tool", new=AsyncMock(return_value=[{"id": 1, "name": "비타민C 1000"}])):
-        chunks = []
-        async for c in run_agent_stream([ChatMessage(role="user", content="요즘 피곤해요")]):
-            chunks.append(c)
-        full = "".join(chunks)
-        assert "비타민C" in full
-        # 추천 제품 ID trailer가 마지막에 포함되어야 한다
-        assert RECO_MARKER in full
-        trailer = full.split(RECO_MARKER)[1]
-        assert json.loads(trailer) == {"ids": [1]}
+
+async def test_stream_events_emergency():
+    with patch("app.triage.classify", new=AsyncMock(return_value="emergency")):
+        graph = build_graph(MemorySaver())
+        events = [e async for e in stream_events(graph, "숨이 안 쉬어져요", "s2")]
+    assert any(e["event"] == "emergency" for e in events)
+    assert events[-1]["event"] == "done"
