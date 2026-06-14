@@ -24,3 +24,7 @@ venv/
 
 # Python build artifacts
 *.egg-info/
+
+# dev server runtime
+.pids/
+.logs/

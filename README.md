@@ -26,6 +26,19 @@ pharmacist-agent/
 
 ## 실행
 
+### Makefile (간편)
+처음 한 번만 `make setup`(의존성 설치) 후, 두 서버를 한 번에 관리합니다.
+```bash
+make start     # web(:3000) + agent(:8000) 백그라운드 실행
+make stop      # 두 서버 중지
+make restart   # 재시작
+make status    # 실행 상태 확인
+make logs      # 로그 실시간 보기
+```
+> agent는 `agent/.env`에 `ANTHROPIC_API_KEY`가 있어야 실제 상담이 됩니다.
+
+아래는 수동 실행 방법입니다.
+
 ### 1) web (포트 3000)
 ```bash
 cd web
