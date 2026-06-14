@@ -4,13 +4,21 @@ from typing import Annotated, Literal, TypedDict
 
 from langchain_anthropic import ChatAnthropic
 from langchain_core.messages import AIMessage, AnyMessage, SystemMessage, ToolMessage
+from langchain_core.runnables import RunnableConfig
 from langgraph.config import get_stream_writer
 from langgraph.graph import START, END, StateGraph
 from langgraph.graph.message import add_messages
 
 from app import triage
 from app.prompts import SYSTEM_PROMPT, EMERGENCY_MESSAGE
-from app.tools import _fetch_products, search_products
+from app.tools import (
+    _fetch_products,
+    _fetch_health_profile,
+    _save_health_profile,
+    search_products,
+    get_health_profile,
+    save_health_profile,
+)
 
 MODEL = os.environ.get("ANTHROPIC_MODEL", "claude-opus-4-8")
 MAX_TOOL_TURNS = 4
@@ -42,27 +50,38 @@ def route_triage(state: AgentState) -> Literal["agent", "emergency"]:
 
 
 async def agent_node(state: AgentState) -> dict:
-    model = _chat_model().bind_tools([search_products])
+    model = _chat_model().bind_tools([search_products, get_health_profile, save_health_profile])
     resp = await model.ainvoke([SystemMessage(content=SYSTEM_PROMPT)] + state["messages"])
     return {"messages": [resp]}
 
 
-async def tools_node(state: AgentState) -> dict:
+async def tools_node(state: AgentState, config: RunnableConfig) -> dict:
     last = state["messages"][-1]
     writer = get_stream_writer()
+    session_id = config["configurable"]["thread_id"]
     tool_messages: list[ToolMessage] = []
     ids = list(state["recommended_ids"])
     for call in last.tool_calls:
+        name = call["name"]
         try:
-            products = await _fetch_products(**call["args"])
-            content = json.dumps(products, ensure_ascii=False)
-            for p in products:
-                if isinstance(p, dict) and "id" in p and p["id"] not in ids:
-                    ids.append(p["id"])
+            if name == "search_products":
+                products = await _fetch_products(**call["args"])
+                content = json.dumps(products, ensure_ascii=False)
+                for p in products:
+                    if isinstance(p, dict) and "id" in p and p["id"] not in ids:
+                        ids.append(p["id"])
+            elif name == "get_health_profile":
+                profile = await _fetch_health_profile(session_id)
+                content = json.dumps(profile, ensure_ascii=False)
+            elif name == "save_health_profile":
+                saved = await _save_health_profile(session_id, **call["args"])
+                content = json.dumps(saved, ensure_ascii=False)
+            else:
+                content = f"알 수 없는 도구: {name}"
         except Exception:
-            content = "검색 중 오류가 발생했습니다. 결과를 가져오지 못했습니다."
+            content = "도구 실행 중 오류가 발생했습니다. 결과를 가져오지 못했습니다."
         tool_messages.append(
-            ToolMessage(content=content, tool_call_id=call["id"], name=call["name"])
+            ToolMessage(content=content, tool_call_id=call["id"], name=name)
         )
     if ids != state["recommended_ids"]:
         writer({"type": "recommendations", "ids": ids})
