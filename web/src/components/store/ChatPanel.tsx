@@ -53,8 +53,8 @@ export function ChatPanel() {
         const { value, done } = await reader.read();
         if (done) break;
         buf += decoder.decode(value, { stream: true });
-        // SSE 프레임은 빈 줄(\n\n)로 구분된다
-        const frames = buf.split("\n\n");
+        // SSE 프레임은 빈 줄로 구분된다 (sse-starlette는 \r\n\r\n 사용)
+        const frames = buf.split(/\r?\n\r?\n/);
         buf = frames.pop() ?? "";
         for (const frame of frames) {
           const ev = parseSSE(frame);
@@ -164,7 +164,7 @@ export function ChatPanel() {
 function parseSSE(frame: string): { event: string; data: string } | null {
   let event = "message";
   const dataLines: string[] = [];
-  for (const line of frame.split("\n")) {
+  for (const line of frame.split(/\r?\n/)) {
     if (line.startsWith("event:")) event = line.slice(6).trim();
     else if (line.startsWith("data:")) dataLines.push(line.slice(5).trim());
   }
