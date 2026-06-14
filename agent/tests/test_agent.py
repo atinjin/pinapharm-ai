@@ -1,5 +1,6 @@
+import json
 from unittest.mock import AsyncMock, patch
-from app.agent import run_agent_stream
+from app.agent import run_agent_stream, RECO_MARKER
 from app.schemas import ChatMessage
 
 class FakeBlock:
@@ -24,4 +25,9 @@ async def test_agent_runs_tool_then_answers():
         chunks = []
         async for c in run_agent_stream([ChatMessage(role="user", content="요즘 피곤해요")]):
             chunks.append(c)
-        assert "비타민C" in "".join(chunks)
+        full = "".join(chunks)
+        assert "비타민C" in full
+        # 추천 제품 ID trailer가 마지막에 포함되어야 한다
+        assert RECO_MARKER in full
+        trailer = full.split(RECO_MARKER)[1]
+        assert json.loads(trailer) == {"ids": [1]}

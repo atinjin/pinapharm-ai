@@ -1,4 +1,5 @@
 import os
+import json
 from collections.abc import AsyncIterator
 from anthropic import AsyncAnthropic
 from app.prompts import SYSTEM_PROMPT
@@ -12,11 +13,24 @@ def get_client() -> AsyncAnthropic:
 
 MODEL = os.environ.get("ANTHROPIC_MODEL", "claude-opus-4-8")
 MAX_TURNS = 5
+# 스트림 끝에 에이전트가 조회한 추천 제품 ID를 클라이언트로 전달하는 구분자
+RECO_MARKER = "<<<RECO>>>"
+
+
+def _collect_ids(result) -> list[int]:
+    ids = []
+    if isinstance(result, list):
+        for item in result:
+            if isinstance(item, dict) and "id" in item:
+                ids.append(item["id"])
+    return ids
 
 
 async def run_agent_stream(messages: list[ChatMessage]) -> AsyncIterator[str]:
     client = get_client()
     convo: list[dict] = [{"role": m.role, "content": m.content} for m in messages]
+    recommended_ids: list[int] = []
+    done = False
 
     for _ in range(MAX_TURNS):
         resp = await client.messages.create(
@@ -27,12 +41,13 @@ async def run_agent_stream(messages: list[ChatMessage]) -> AsyncIterator[str]:
             messages=convo,
         )
 
-        text_parts = [b.text for b in resp.content if b.type == "text"]
-        for t in text_parts:
-            yield t
+        for b in resp.content:
+            if b.type == "text":
+                yield b.text
 
         if resp.stop_reason != "tool_use":
-            return
+            done = True
+            break
 
         assistant_content = []
         tool_results = []
@@ -42,9 +57,17 @@ async def run_agent_stream(messages: list[ChatMessage]) -> AsyncIterator[str]:
             elif b.type == "tool_use":
                 assistant_content.append({"type": "tool_use", "id": b.id, "name": b.name, "input": b.input})
                 result = await run_tool(b.name, b.input)
+                if b.name == "search_products":
+                    for pid in _collect_ids(result):
+                        if pid not in recommended_ids:
+                            recommended_ids.append(pid)
                 tool_results.append({"type": "tool_result", "tool_use_id": b.id, "content": str(result)})
 
         convo.append({"role": "assistant", "content": assistant_content})
         convo.append({"role": "user", "content": tool_results})
 
-    yield "\n(상담을 더 진행하려면 다시 질문해주세요.)"
+    if not done:
+        yield "\n(상담을 더 진행하려면 다시 질문해주세요.)"
+
+    # 추천 제품 ID trailer (클라이언트가 우측 패널에 사용)
+    yield f"\n{RECO_MARKER}{json.dumps({'ids': recommended_ids})}"

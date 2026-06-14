@@ -6,8 +6,11 @@ import { useStore } from "@/components/store/StoreProvider";
 
 type Msg = { role: "user" | "assistant"; content: string };
 
+// 에이전트 스트림 끝의 추천 제품 ID 구분자 (agent/app/agent.py 와 동일)
+const RECO_MARKER = "<<<RECO>>>";
+
 export function ChatPanel() {
-  const { outbound, consumeOutbound, ask } = useStore();
+  const { outbound, consumeOutbound, ask, setRecommended } = useStore();
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -50,7 +53,19 @@ export function ChatPanel() {
         const { value, done } = await reader.read();
         if (done) break;
         acc += decoder.decode(value);
-        setMessages([...next, { role: "assistant", content: acc }]);
+        // 추천 ID trailer는 화면에 표시하지 않는다
+        setMessages([...next, { role: "assistant", content: acc.split(RECO_MARKER)[0].trimEnd() }]);
+      }
+      // 에이전트가 실제 추천한 제품 ID로 우측 패널 갱신
+      const markerIdx = acc.indexOf(RECO_MARKER);
+      if (markerIdx !== -1) {
+        try {
+          const ids = JSON.parse(acc.slice(markerIdx + RECO_MARKER.length)).ids;
+          // 에이전트가 실제 검색·추천했을 때만 갱신(되묻기만 하면 미리보기 추천 유지)
+          if (Array.isArray(ids) && ids.length > 0) setRecommended(ids);
+        } catch {
+          /* 무시 */
+        }
       }
     } catch {
       setMessages([...next, { role: "assistant", content: "상담 연결에 문제가 발생했어요. 잠시 후 다시 시도해주세요." }]);

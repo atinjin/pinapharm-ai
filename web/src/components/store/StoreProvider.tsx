@@ -28,6 +28,8 @@ type StoreState = {
   setDockOpen: (v: boolean) => void;
   /** ask the AI + filter the storefront like a search */
   ask: (q: string) => void;
+  /** 에이전트가 실제 추천(조회)한 제품 ID로 우측 패널을 갱신 */
+  setRecommended: (ids: number[]) => void;
   clearSearch: () => void;
   /** internal chat bridge */
   outbound: { id: number; text: string } | null;
@@ -86,6 +88,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
   const consumeOutbound = useCallback(() => setOutbound(null), []);
 
+  const setRecommended = useCallback((ids: number[]) => setMatchedIds(ids), []);
+
   const clearSearch = useCallback(() => {
     setQuery(null);
     setMatchedIds([]);
@@ -116,6 +120,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     dockOpen,
     setDockOpen,
     ask,
+    setRecommended,
     clearSearch,
     outbound,
     consumeOutbound,
