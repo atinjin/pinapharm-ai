@@ -6,9 +6,6 @@ import { useStore } from "@/components/store/StoreProvider";
 
 type Msg = { role: "user" | "assistant"; content: string };
 
-// 에이전트 스트림 끝의 추천 제품 ID 구분자 (agent/app/agent.py 와 동일)
-const RECO_MARKER = "<<<RECO>>>";
-
 export function ChatPanel() {
   const { outbound, consumeOutbound, ask, setRecommended } = useStore();
   const [messages, setMessages] = useState<Msg[]>([]);
@@ -17,6 +14,8 @@ export function ChatPanel() {
   const msgsRef = useRef<Msg[]>([]);
   const endRef = useRef<HTMLDivElement>(null);
   const lastAsk = useRef(0);
+  const sessionId = useRef<string>("");
+  if (!sessionId.current) sessionId.current = crypto.randomUUID();
 
   useEffect(() => {
     msgsRef.current = messages;
@@ -40,11 +39,12 @@ export function ChatPanel() {
     setMessages(next);
     setLoading(true);
     let acc = "";
+    let buf = "";
     try {
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: next }),
+        body: JSON.stringify({ message: text, session_id: sessionId.current }),
       });
       setMessages([...next, { role: "assistant", content: "" }]);
       const reader = res.body!.getReader();
@@ -52,19 +52,26 @@ export function ChatPanel() {
       while (true) {
         const { value, done } = await reader.read();
         if (done) break;
-        acc += decoder.decode(value);
-        // 추천 ID trailer는 화면에 표시하지 않는다
-        setMessages([...next, { role: "assistant", content: acc.split(RECO_MARKER)[0].trimEnd() }]);
-      }
-      // 에이전트가 실제 추천한 제품 ID로 우측 패널 갱신
-      const markerIdx = acc.indexOf(RECO_MARKER);
-      if (markerIdx !== -1) {
-        try {
-          const ids = JSON.parse(acc.slice(markerIdx + RECO_MARKER.length)).ids;
-          // 에이전트가 실제 검색·추천했을 때만 갱신(되묻기만 하면 미리보기 추천 유지)
-          if (Array.isArray(ids) && ids.length > 0) setRecommended(ids);
-        } catch {
-          /* 무시 */
+        buf += decoder.decode(value, { stream: true });
+        // SSE 프레임은 빈 줄(\n\n)로 구분된다
+        const frames = buf.split("\n\n");
+        buf = frames.pop() ?? "";
+        for (const frame of frames) {
+          const ev = parseSSE(frame);
+          if (!ev) continue;
+          if (ev.event === "token") {
+            acc += JSON.parse(ev.data).text;
+            setMessages([...next, { role: "assistant", content: acc }]);
+          } else if (ev.event === "emergency") {
+            acc += JSON.parse(ev.data).message;
+            setMessages([...next, { role: "assistant", content: acc }]);
+          } else if (ev.event === "recommendations") {
+            const ids = JSON.parse(ev.data).ids;
+            if (Array.isArray(ids) && ids.length > 0) setRecommended(ids);
+          } else if (ev.event === "error") {
+            acc += "\n\n" + JSON.parse(ev.data).message;
+            setMessages([...next, { role: "assistant", content: acc }]);
+          }
         }
       }
     } catch {
@@ -152,6 +159,17 @@ export function ChatPanel() {
       </div>
     </div>
   );
+}
+
+function parseSSE(frame: string): { event: string; data: string } | null {
+  let event = "message";
+  const dataLines: string[] = [];
+  for (const line of frame.split("\n")) {
+    if (line.startsWith("event:")) event = line.slice(6).trim();
+    else if (line.startsWith("data:")) dataLines.push(line.slice(5).trim());
+  }
+  if (dataLines.length === 0) return null;
+  return { event, data: dataLines.join("\n") };
 }
 
 function TypingDots() {
