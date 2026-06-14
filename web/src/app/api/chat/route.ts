@@ -30,15 +30,16 @@ export async function POST(req: NextRequest) {
     return new Response("상담 서비스에 연결할 수 없습니다. 잠시 후 다시 시도해주세요.", { status: 502 });
   }
 
-  const body = teeAndPersist(upstream.body!, consultationId);
-  return new Response(body, {
-    status: upstream.status,
-    headers: {
-      "Content-Type": "text/event-stream; charset=utf-8",
-      "Cache-Control": "no-cache, no-transform",
-      Connection: "keep-alive",
-    },
-  });
+  const sseHeaders = {
+    "Content-Type": "text/event-stream; charset=utf-8",
+    "Cache-Control": "no-cache, no-transform",
+    Connection: "keep-alive",
+  };
+  if (!upstream.body) {
+    return new Response(null, { status: upstream.status, headers: sseHeaders });
+  }
+  const body = teeAndPersist(upstream.body, consultationId);
+  return new Response(body, { status: upstream.status, headers: sseHeaders });
 }
 
 // 업스트림 스트림을 클라이언트로 그대로 흘려보내면서 원문을 모아두었다가,
@@ -60,6 +61,7 @@ function teeAndPersist(
           controller.enqueue(value);
         }
       } finally {
+        try { reader.releaseLock(); } catch {}
         controller.close();
         if (consultationId !== null) {
           const { text, ids } = extractFromSSE(raw);
