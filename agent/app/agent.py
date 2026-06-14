@@ -33,17 +33,16 @@ async def run_agent_stream(messages: list[ChatMessage]) -> AsyncIterator[str]:
     done = False
 
     for _ in range(MAX_TURNS):
-        resp = await client.messages.create(
+        async with client.messages.stream(
             model=MODEL,
             max_tokens=1024,
             system=SYSTEM_PROMPT,
             tools=TOOL_DEFS,
             messages=convo,
-        )
-
-        for b in resp.content:
-            if b.type == "text":
-                yield b.text
+        ) as stream:
+            async for text in stream.text_stream:
+                yield text
+            resp = await stream.get_final_message()
 
         if resp.stop_reason != "tool_use":
             done = True
