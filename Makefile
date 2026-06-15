@@ -52,7 +52,7 @@ agent:
 	@if lsof -ti:$(AGENT_PORT) >/dev/null 2>&1; then \
 		echo "• agent 이미 실행 중 (:$(AGENT_PORT))"; \
 	else \
-		( cd $(AGENT_DIR) && nohup .venv/bin/uvicorn app.main:app --port $(AGENT_PORT) > ../$(LOG_DIR)/agent.log 2>&1 & echo $$! ) > $(PID_DIR)/agent.pid; \
+		( cd $(AGENT_DIR) && nohup .venv/bin/uvicorn app.main:app --port $(AGENT_PORT) --reload > ../$(LOG_DIR)/agent.log 2>&1 & echo $$! ) > $(PID_DIR)/agent.pid; \
 		echo "• agent 시작 (pid $$(cat $(PID_DIR)/agent.pid)) → $(LOG_DIR)/agent.log"; \
 	fi
 
