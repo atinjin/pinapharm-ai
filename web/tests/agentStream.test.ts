@@ -19,4 +19,12 @@ describe("extractFromSSE", () => {
     const raw = 'event: emergency\ndata: {"message":"병원에 가세요"}\n\n';
     expect(extractFromSSE(raw).text).toBe("병원에 가세요");
   });
+  it("CRLF(\\r\\n\\r\\n) 프레임 경계도 파싱한다 (sse-starlette)", () => {
+    const raw =
+      'event: token\r\ndata: {"text":"비타민"}\r\n\r\n' +
+      'event: token\r\ndata: {"text":"C"}\r\n\r\n' +
+      'event: recommendations\r\ndata: {"ids":[7]}\r\n\r\n' +
+      'event: done\r\ndata: {}\r\n\r\n';
+    expect(extractFromSSE(raw)).toEqual({ text: "비타민C", ids: [7] });
+  });
 });
