@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { AdminProductForm } from "@/components/AdminProductForm";
 import { AdminCsvImport } from "@/components/AdminCsvImport";
 import { AdminProductItem, type AdminProduct } from "@/components/AdminProductItem";
+import { Modal } from "@/components/Modal";
 
 type SortKey = "recent" | "name" | "priceAsc" | "priceDesc" | "stockAsc";
 
@@ -26,6 +27,7 @@ export default function AdminProductsPage() {
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<SortKey>("recent");
   const [page, setPage] = useState(1);
+  const [modal, setModal] = useState<null | "create" | "import">(null);
 
   async function load() {
     const res = await fetch("/api/products");
@@ -70,16 +72,36 @@ export default function AdminProductsPage() {
 
   return (
     <>
-      <section className="glass mb-5 rounded-3xl p-5 sm:p-6">
-        <h2 className="mb-4 text-sm font-semibold text-slate-600">새 영양제 등록</h2>
-        <AdminProductForm onCreated={load} />
-      </section>
+      <div className="mb-6 flex flex-wrap gap-2">
+        <button
+          onClick={() => setModal("create")}
+          className="rounded-full accent px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-indigo-500/30 transition hover:opacity-90 active:scale-95"
+        >
+          + 새 영양제 등록
+        </button>
+        <button
+          onClick={() => setModal("import")}
+          className="glass rounded-full px-5 py-2.5 text-sm font-medium text-slate-700 transition hover:-translate-y-0.5 hover:bg-white/70"
+        >
+          CSV 일괄 등록
+        </button>
+      </div>
 
-      <section className="glass mb-6 rounded-3xl p-5 sm:p-6">
-        <h2 className="mb-1 text-sm font-semibold text-slate-600">CSV 일괄 등록</h2>
-        <p className="mb-4 text-xs text-slate-400">엑셀에서 CSV로 저장한 실제 취급 품목을 한 번에 등록합니다.</p>
+      <Modal open={modal === "create"} title="새 영양제 등록" onClose={() => setModal(null)}>
+        <AdminProductForm
+          onCreated={() => {
+            load();
+            setModal(null);
+          }}
+        />
+      </Modal>
+
+      <Modal open={modal === "import"} title="CSV 일괄 등록" onClose={() => setModal(null)}>
+        <p className="mb-4 text-xs text-slate-400">
+          엑셀에서 CSV로 저장한 실제 취급 품목을 한 번에 등록합니다. 등록 결과를 확인한 뒤 닫아 주세요.
+        </p>
         <AdminCsvImport onImported={load} />
-      </section>
+      </Modal>
 
       <div className="mb-3 flex items-center justify-between px-1">
         <h2 className="text-sm font-semibold text-slate-600">등록된 영양제</h2>
