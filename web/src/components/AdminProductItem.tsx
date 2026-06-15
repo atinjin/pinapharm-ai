@@ -10,6 +10,7 @@ export type AdminProduct = {
   conditionTags: string;
   isActive: boolean;
   imageUrl: string | null;
+  createdAt: string;
 };
 
 export function AdminProductItem({ p, onChanged }: { p: AdminProduct; onChanged: () => void }) {

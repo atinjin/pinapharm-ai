@@ -28,3 +28,6 @@ venv/
 # dev server runtime
 .pids/
 .logs/
+
+# agent worktrees / local agent state
+.claude/

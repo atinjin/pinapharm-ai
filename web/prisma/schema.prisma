@@ -91,6 +91,22 @@ model Identity {
   @@index([customerId])
 }
 
+model AgentSetting {
+  key       String   @id // persona | system_prompt | emergency_message | triage_prompt
+  value     String
+  updatedAt DateTime @updatedAt
+}
+
+model ConsultationSkill {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique // kebab-case slug
+  description String // 한 줄 — 언제 쓰는지(매칭용)
+  body        String // markdown 상담 절차 본문
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
 model HealthProfile {
   id          Int      @id @default(autoincrement())
   customer    Customer @relation(fields: [customerId], references: [id])
