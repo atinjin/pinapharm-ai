@@ -2,6 +2,8 @@ import os
 import httpx
 from langchain_core.tools import tool
 
+from app.config_client import fetch_skill_body
+
 
 async def _fetch_products(
     condition: str = "",
@@ -71,3 +73,10 @@ async def save_health_profile(
     알레르기(allergies)·임신/수유(pregnancy) 같은 지속 정보만 기록한다.
     (실제 호출은 그래프의 tools_node가 session_id를 주입해 수행한다.)"""
     return {}
+
+
+@tool
+async def load_consultation_skill(name: str) -> str:
+    """시스템 프롬프트의 '사용 가능한 상담 스킬' 목록에 있는 상담 절차를 name으로 불러온다.
+    해당 상담 상황에 들어가면 절차를 따르기 전에 호출해 본문을 확인한다."""
+    return await fetch_skill_body(name)

@@ -10,7 +10,8 @@ from langgraph.graph import START, END, StateGraph
 from langgraph.graph.message import add_messages
 
 from app import triage
-from app.prompts import SYSTEM_PROMPT, EMERGENCY_MESSAGE
+from app.prompts import EMERGENCY_MESSAGE
+from app.config_client import get_config, build_system_prompt, fetch_skill_body
 from app.tools import (
     _fetch_products,
     _fetch_health_profile,
@@ -18,6 +19,7 @@ from app.tools import (
     search_products,
     get_health_profile,
     save_health_profile,
+    load_consultation_skill,
 )
 
 MODEL = os.environ.get("ANTHROPIC_MODEL", "claude-opus-4-8")
@@ -50,8 +52,12 @@ def route_triage(state: AgentState) -> Literal["agent", "emergency"]:
 
 
 async def agent_node(state: AgentState) -> dict:
-    model = _chat_model().bind_tools([search_products, get_health_profile, save_health_profile])
-    resp = await model.ainvoke([SystemMessage(content=SYSTEM_PROMPT)] + state["messages"])
+    cfg = await get_config()
+    model = _chat_model().bind_tools(
+        [search_products, get_health_profile, save_health_profile, load_consultation_skill]
+    )
+    system = build_system_prompt(cfg)
+    resp = await model.ainvoke([SystemMessage(content=system)] + state["messages"])
     return {"messages": [resp]}
 
 
@@ -76,6 +82,8 @@ async def tools_node(state: AgentState, config: RunnableConfig) -> dict:
             elif name == "save_health_profile":
                 saved = await _save_health_profile(session_id, **call["args"])
                 content = json.dumps(saved, ensure_ascii=False)
+            elif name == "load_consultation_skill":
+                content = await fetch_skill_body(**call["args"])
             else:
                 content = f"알 수 없는 도구: {name}"
         except Exception:
@@ -102,14 +110,18 @@ def route_after_agent(state: AgentState) -> Literal["tools", "finalize", "__end_
 
 
 async def finalize_node(state: AgentState) -> dict:
-    resp = await _chat_model().ainvoke([SystemMessage(content=SYSTEM_PROMPT)] + state["messages"])
+    cfg = await get_config()
+    system = build_system_prompt(cfg)
+    resp = await _chat_model().ainvoke([SystemMessage(content=system)] + state["messages"])
     return {"messages": [resp]}
 
 
 async def emergency_node(state: AgentState) -> dict:
+    cfg = await get_config()
+    message = cfg.get("emergencyMessage") or EMERGENCY_MESSAGE
     writer = get_stream_writer()
-    writer({"type": "emergency", "message": EMERGENCY_MESSAGE})
-    return {"messages": [AIMessage(content=EMERGENCY_MESSAGE)]}
+    writer({"type": "emergency", "message": message})
+    return {"messages": [AIMessage(content=message)]}
 
 
 def build_graph(checkpointer):
