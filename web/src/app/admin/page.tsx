@@ -14,6 +14,8 @@ const SORTS: { key: SortKey; label: string }[] = [
   { key: "stockAsc", label: "재고 적은순" },
 ];
 
+const PAGE_SIZE = 20;
+
 function matches(p: AdminProduct, q: string): boolean {
   const tags = (JSON.parse(p.conditionTags || "[]") as string[]).join(" ");
   return [p.name, p.brand ?? "", tags].join(" ").toLowerCase().includes(q);
@@ -23,6 +25,7 @@ export default function AdminProductsPage() {
   const [products, setProducts] = useState<AdminProduct[]>([]);
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<SortKey>("recent");
+  const [page, setPage] = useState(1);
 
   async function load() {
     const res = await fetch("/api/products");
@@ -52,6 +55,15 @@ export default function AdminProductsPage() {
     });
     return sorted;
   }, [products, query, sort]);
+
+  // 검색·정렬이 바뀌면 첫 페이지로 되돌린다
+  useEffect(() => {
+    setPage(1);
+  }, [query, sort]);
+
+  const totalPages = Math.max(1, Math.ceil(visible.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages);
+  const paged = visible.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
   const field =
     "w-full rounded-xl border border-white/60 bg-white/70 px-3.5 py-2.5 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-sky-300 focus:bg-white";
@@ -102,11 +114,35 @@ export default function AdminProductsPage() {
           {query.trim() ? "검색 결과가 없습니다." : "등록된 영양제가 없습니다."}
         </p>
       ) : (
-        <ul className="grid gap-3">
-          {visible.map((p) => (
-            <AdminProductItem key={p.id} p={p} onChanged={load} />
-          ))}
-        </ul>
+        <>
+          <ul className="grid gap-3">
+            {paged.map((p) => (
+              <AdminProductItem key={p.id} p={p} onChanged={load} />
+            ))}
+          </ul>
+
+          {totalPages > 1 && (
+            <div className="mt-5 flex items-center justify-center gap-3">
+              <button
+                onClick={() => setPage((n) => Math.max(1, n - 1))}
+                disabled={safePage <= 1}
+                className="rounded-full border border-white/60 bg-white/60 px-4 py-1.5 text-sm font-medium text-slate-600 transition hover:bg-white/90 active:scale-95 disabled:opacity-40"
+              >
+                이전
+              </button>
+              <span className="text-sm text-slate-500">
+                {safePage} / {totalPages}
+              </span>
+              <button
+                onClick={() => setPage((n) => Math.min(totalPages, n + 1))}
+                disabled={safePage >= totalPages}
+                className="rounded-full border border-white/60 bg-white/60 px-4 py-1.5 text-sm font-medium text-slate-600 transition hover:bg-white/90 active:scale-95 disabled:opacity-40"
+              >
+                다음
+              </button>
+            </div>
+          )}
+        </>
       )}
     </>
   );
