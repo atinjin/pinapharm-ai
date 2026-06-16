@@ -10,6 +10,37 @@
 
 **참고 스펙:** [docs/superpowers/specs/2026-06-16-rag-consultation-design.md](../specs/2026-06-16-rag-consultation-design.md)
 
+**상태:** ✅ 완료 — main 병합 `378d5fb` (12개 태스크 모두 구현·2단계 리뷰 완료). 아래 체크리스트는 실행 기록으로 보존.
+
+---
+
+## 실행 결과 (2026-06-17)
+
+서브에이전트 기반(태스크별 구현 + 스펙/코드품질 2단계 리뷰 + 최종 종합 리뷰)으로 전 태스크 완료 후 `feat/rag-consultation` → main 병합·푸시.
+
+| 태스크 | 커밋 | 태스크 | 커밋 |
+|---|---|---|---|
+| 1 KnowledgeChunk 모델 | `dd381f5` | 7 제품 색인+쓰기 훅 | `a48b197` |
+| 2 vectors 유틸 | `8663423` | 8 하이브리드 제품 검색 | `8f90ba8` |
+| 3 Voyage 임베딩 | `7058adc` | 9 retrieve_knowledge 도구 | `e7e35f1` |
+| 4 knowledge 저장/검색 | `b79557a` | 10 그래프 바인딩·디스패치 | `ea6bdc9` |
+| 5 retrieve-knowledge 엔드포인트 | `a318489` | 11 프롬프트 지침 | `e7d7d3d` |
+| 6 원료 seed+색인 | `7a2b1e1` | 12 env fix(VOYAGE_TOKEN·.env) | `6cacb2e` |
+| — | — | 최종 리뷰 보정 | `7eb9d69` |
+
+**계획 대비 변경(실행 중 결정):**
+
+- Task 8 하이브리드 테스트를 별도 파일 `web/tests/products-hybrid.test.ts`로 분리(임베딩 mock이 기존 제품 테스트에 번지지 않도록) + lexical/동의어가 못 잡는 **결정적** 의미검색 케이스로 작성.
+- 임베딩 키: `embeddings.ts`가 `VOYAGE_API_KEY ?? VOYAGE_TOKEN` 모두 허용(.env가 `VOYAGE_TOKEN`을 사용 중).
+- 색인 스크립트가 `.env`를 로드하도록 `import "dotenv/config"` 추가 + `dotenv`를 devDependency로 명시.
+- 최종 리뷰 보정: 공유 dev.db 테스트 레이스 제거를 위해 vitest `fileParallelism: false`, 의미검색 상수화(`SEMANTIC_MIN_SCORE=0.2`/`SEMANTIC_TOP_K=10`), `.env.example`에 `EMBEDDING_DIM` 문서화.
+
+**검증:** web vitest **45/45**, agent pytest **28/28**, `tsc --noEmit` clean. 폴백(임베딩 실패 시 lexical 검색·`retrieve-knowledge` `[]`)은 라이브로 확인됨.
+
+**운영 주의(코드 결함 아님):** Voyage 무료 티어(3 RPM·결제수단 미등록)로 제품 17건 전량 색인 + 라이브 의미검색이 막힘. 결제수단 등록 후 `npm run index:products`(+`index:knowledge`) 재실행하면 의미검색·그라운딩이 정상화된다. 그 전까지는 lexical 폴백으로 동작. (참고: 로컬 :8000 포트가 다른 프로젝트와 충돌 시 web `.env`의 `AGENT_URL` 확인.)
+
+**후속(범위 밖):** 원료 seed를 약사 검수로 20~30종 확장, 필요 시 Voyage `output_dimension` 연동, 대규모 시 `sqlite-vec`/리랭커.
+
 ---
 
 ## File Structure
