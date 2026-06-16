@@ -10,6 +10,7 @@
     "test": "vitest run",
     "seed": "tsx prisma/seed.ts",
     "import:mfds": "tsx scripts/import-mfds.ts",
+    "index:knowledge": "tsx scripts/index-knowledge.ts",
     "db:reset": "prisma migrate reset --force"
   },
   "dependencies": {
