@@ -107,6 +107,20 @@ model ConsultationSkill {
   updatedAt   DateTime @updatedAt
 }
 
+model KnowledgeChunk {
+  id        Int      @id @default(autoincrement())
+  kind      String // "product" | "ingredient"
+  refId     String? // product: productId / ingredient: 원료명
+  title     String
+  text      String
+  metadata  String   @default("{}")
+  embedding Bytes
+  model     String
+  updatedAt DateTime @updatedAt
+
+  @@index([kind])
+}
+
 model HealthProfile {
   id          Int      @id @default(autoincrement())
   customer    Customer @relation(fields: [customerId], references: [id])
