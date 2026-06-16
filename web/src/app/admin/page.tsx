@@ -15,7 +15,7 @@ const SORTS: { key: SortKey; label: string }[] = [
   { key: "stockAsc", label: "재고 적은순" },
 ];
 
-const PAGE_SIZE = 20;
+const PAGE_SIZES = [10, 20, 50, 100];
 
 function matches(p: AdminProduct, q: string): boolean {
   const tags = (JSON.parse(p.conditionTags || "[]") as string[]).join(" ");
@@ -27,6 +27,7 @@ export default function AdminProductsPage() {
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<SortKey>("recent");
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
   const [modal, setModal] = useState<null | "create" | "import">(null);
 
   async function load() {
@@ -58,14 +59,14 @@ export default function AdminProductsPage() {
     return sorted;
   }, [products, query, sort]);
 
-  // 검색·정렬이 바뀌면 첫 페이지로 되돌린다
+  // 검색·정렬·페이지 크기가 바뀌면 첫 페이지로 되돌린다
   useEffect(() => {
     setPage(1);
-  }, [query, sort]);
+  }, [query, sort, pageSize]);
 
-  const totalPages = Math.max(1, Math.ceil(visible.length / PAGE_SIZE));
+  const totalPages = Math.max(1, Math.ceil(visible.length / pageSize));
   const safePage = Math.min(page, totalPages);
-  const paged = visible.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
+  const paged = visible.slice((safePage - 1) * pageSize, safePage * pageSize);
 
   const field =
     "w-full rounded-xl border border-white/60 bg-white/70 px-3.5 py-2.5 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-sky-300 focus:bg-white";
@@ -103,14 +104,6 @@ export default function AdminProductsPage() {
         <AdminCsvImport onImported={load} />
       </Modal>
 
-      <div className="mb-3 flex items-center justify-between px-1">
-        <h2 className="text-sm font-semibold text-slate-600">등록된 영양제</h2>
-        <span className="rounded-full bg-white/60 px-2.5 py-0.5 text-xs font-medium text-slate-500">
-          {visible.length}
-          {query.trim() ? ` / ${products.length}` : ""}개
-        </span>
-      </div>
-
       <div className="mb-3 flex flex-col gap-2 sm:flex-row">
         <input
           placeholder="제품명·브랜드·증상 태그 검색"
@@ -129,6 +122,26 @@ export default function AdminProductsPage() {
             </option>
           ))}
         </select>
+        <select
+          value={pageSize}
+          onChange={(e) => setPageSize(Number(e.target.value))}
+          className={`${field} sm:w-32`}
+          aria-label="페이지당 개수"
+        >
+          {PAGE_SIZES.map((n) => (
+            <option key={n} value={n}>
+              {n}개씩
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div className="mb-3 flex items-center justify-between px-1">
+        <h2 className="text-sm font-semibold text-slate-600">등록된 영양제</h2>
+        <span className="rounded-full bg-white/60 px-2.5 py-0.5 text-xs font-medium text-slate-500">
+          {visible.length}
+          {query.trim() ? ` / ${products.length}` : ""}개
+        </span>
       </div>
 
       {visible.length === 0 ? (
