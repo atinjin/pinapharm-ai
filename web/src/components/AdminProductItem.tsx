@@ -18,11 +18,13 @@ export function AdminProductItem({
   onChanged,
   selected,
   onToggleSelected,
+  onRequestDelete,
 }: {
   p: AdminProduct;
   onChanged: () => void;
   selected?: boolean;
   onToggleSelected?: (id: number, checked: boolean) => void;
+  onRequestDelete?: (p: AdminProduct) => void;
 }) {
   const [editing, setEditing] = useState(false);
   const [price, setPrice] = useState(String(p.price));
@@ -41,11 +43,6 @@ export function AdminProductItem({
     });
     setBusy(false);
     setEditing(false);
-    onChanged();
-  }
-
-  async function remove() {
-    await fetch(`/api/products/${p.id}`, { method: "DELETE" });
     onChanged();
   }
 
@@ -101,7 +98,7 @@ export function AdminProductItem({
             {editing ? "닫기" : "수정"}
           </button>
           <button
-            onClick={remove}
+            onClick={() => onRequestDelete?.(p)}
             className="rounded-full border border-rose-200 bg-rose-50 px-3 py-1.5 text-sm font-medium text-rose-600 transition hover:bg-rose-100 active:scale-95"
           >
             삭제

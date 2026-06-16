@@ -30,6 +30,8 @@ export default function AdminProductsPage() {
   const [pageSize, setPageSize] = useState(20);
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [modal, setModal] = useState<null | "create" | "import">(null);
+  const [pendingDelete, setPendingDelete] = useState<AdminProduct[] | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   async function load() {
     const res = await fetch("/api/products");
@@ -88,16 +90,30 @@ export default function AdminProductsPage() {
       return next;
     });
   }
-  async function deleteSelected() {
-    if (selected.size === 0) return;
-    if (!window.confirm(`선택한 ${selected.size}개 영양제를 삭제할까요?`)) return;
+  function requestDeleteOne(target: AdminProduct) {
+    setPendingDelete([target]);
+  }
+  function requestDeleteSelected() {
+    const items = products.filter((p) => selected.has(p.id));
+    if (items.length) setPendingDelete(items);
+  }
+  async function confirmDelete() {
+    if (!pendingDelete) return;
+    setDeleting(true);
+    const ids = pendingDelete.map((p) => p.id);
     const results = await Promise.allSettled(
-      [...selected].map((id) => fetch(`/api/products/${id}`, { method: "DELETE" }))
+      ids.map((id) => fetch(`/api/products/${id}`, { method: "DELETE" }))
     );
     const failed = results.filter(
       (r) => r.status === "rejected" || (r.status === "fulfilled" && !r.value.ok)
     ).length;
-    setSelected(new Set());
+    setSelected((prev) => {
+      const next = new Set(prev);
+      ids.forEach((id) => next.delete(id));
+      return next;
+    });
+    setDeleting(false);
+    setPendingDelete(null);
     await load();
     if (failed)
       window.alert(`${failed}개는 삭제하지 못했습니다. (추천·주문 이력이 연결된 상품일 수 있습니다)`);
@@ -137,6 +153,52 @@ export default function AdminProductsPage() {
           엑셀에서 CSV로 저장한 실제 취급 품목을 한 번에 등록합니다. 등록 결과를 확인한 뒤 닫아 주세요.
         </p>
         <AdminCsvImport onImported={load} />
+      </Modal>
+
+      <Modal
+        open={!!pendingDelete}
+        title="영양제 삭제 확인"
+        onClose={() => {
+          if (!deleting) setPendingDelete(null);
+        }}
+      >
+        {pendingDelete && (
+          <div className="grid gap-4">
+            <p className="text-sm text-slate-600">
+              아래 <span className="font-semibold text-rose-600">{pendingDelete.length}개</span> 영양제를
+              삭제합니다. 이 작업은 되돌릴 수 없습니다.
+            </p>
+            <ul className="max-h-60 divide-y divide-white/60 overflow-y-auto rounded-2xl border border-white/60 bg-white/50 text-sm">
+              {pendingDelete.map((p) => (
+                <li key={p.id} className="flex items-center justify-between gap-2 px-3 py-2">
+                  <span className="truncate text-slate-700">
+                    {p.name}
+                    {p.brand && <span className="text-slate-400"> · {p.brand}</span>}
+                  </span>
+                  <span className="shrink-0 text-xs text-slate-400">
+                    {p.price.toLocaleString()}원 · 재고 {p.stock}
+                  </span>
+                </li>
+              ))}
+            </ul>
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setPendingDelete(null)}
+                disabled={deleting}
+                className="rounded-full border border-white/60 bg-white/60 px-5 py-2 text-sm font-medium text-slate-600 transition hover:bg-white/90 active:scale-95 disabled:opacity-50"
+              >
+                취소
+              </button>
+              <button
+                onClick={confirmDelete}
+                disabled={deleting}
+                className="rounded-full bg-rose-500 px-5 py-2 text-sm font-semibold text-white shadow-md shadow-rose-500/30 transition hover:bg-rose-600 active:scale-95 disabled:opacity-50"
+              >
+                {deleting ? "삭제 중…" : `${pendingDelete.length}개 삭제`}
+              </button>
+            </div>
+          </div>
+        )}
       </Modal>
 
       <div className="mb-3 flex flex-col gap-2 sm:flex-row">
@@ -193,7 +255,7 @@ export default function AdminProductsPage() {
         </div>
         {selected.size > 0 && (
           <button
-            onClick={deleteSelected}
+            onClick={requestDeleteSelected}
             className="rounded-full border border-rose-200 bg-rose-50 px-4 py-1.5 text-sm font-medium text-rose-600 transition hover:bg-rose-100 active:scale-95"
           >
             선택 삭제 ({selected.size})
@@ -215,6 +277,7 @@ export default function AdminProductsPage() {
                 onChanged={load}
                 selected={selected.has(p.id)}
                 onToggleSelected={toggleOne}
+                onRequestDelete={requestDeleteOne}
               />
             ))}
           </ul>
