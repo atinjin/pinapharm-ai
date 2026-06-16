@@ -1,5 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { upsertChunk } from "@/lib/knowledge";
+import { embed } from "@/lib/embeddings";
+import { normalize, cosineTopK } from "@/lib/vectors";
 
 export function parseTags(raw: string): string[] {
   try {
@@ -67,16 +69,43 @@ function expandQueryTags(q: string): Set<string> {
   return tags;
 }
 
+async function semanticProductIds(queryText: string, k: number): Promise<number[]> {
+  const [qvec] = await embed([queryText], "query");
+  const q = normalize(qvec);
+  const chunks = await prisma.knowledgeChunk.findMany({ where: { kind: "product" } });
+  return cosineTopK(q, chunks as unknown as Array<(typeof chunks)[number] & { embedding: Buffer }>, k)
+    .filter((c) => c.score > 0.2)
+    .map((c) => Number(c.refId))
+    .filter((n) => Number.isFinite(n));
+}
+
 export async function searchProducts(opts: { condition?: string; keyword?: string }) {
   const all = await prisma.product.findMany({ where: { isActive: true } });
   const terms = [opts.condition, opts.keyword].filter(Boolean) as string[];
   if (terms.length === 0) return all;
+
   const expanded = expandQueryTags(terms.join(" "));
-  return all.filter((p) => {
-    if (terms.some((t) => matchesQuery(p, t))) return true; // 직접 부분일치
+  const lexical = all.filter((p) => {
+    if (terms.some((t) => matchesQuery(p, t))) return true;
     if (expanded.size === 0) return false;
-    return parseTags(p.conditionTags).some((t) => expanded.has(t)); // 동의어 태그 일치
+    return parseTags(p.conditionTags).some((t) => expanded.has(t));
   });
+
+  let semantic: typeof all = [];
+  try {
+    const ids = await semanticProductIds(terms.join(" "), 10);
+    const byId = new Map(all.map((p) => [p.id, p]));
+    semantic = ids.map((id) => byId.get(id)).filter((p): p is (typeof all)[number] => !!p);
+  } catch (e) {
+    console.error("의미검색 실패 → lexical만 사용", e);
+  }
+
+  const seen = new Set<number>();
+  const merged: typeof all = [];
+  for (const p of [...semantic, ...lexical]) {
+    if (!seen.has(p.id)) { seen.add(p.id); merged.push(p); }
+  }
+  return merged;
 }
 
 export async function listProducts() {
