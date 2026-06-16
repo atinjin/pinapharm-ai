@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 320" width="1280" height="320" role="img" aria-label="PinaPharm AI Agent">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#4f46e5"/>
+      <stop offset="0.55" stop-color="#7c3aed"/>
+      <stop offset="1" stop-color="#fb7185"/>
+    </linearGradient>
+    <clipPath id="cap"><rect x="-72" y="-26" width="144" height="52" rx="26"/></clipPath>
+  </defs>
+
+  <rect x="0" y="0" width="1280" height="320" rx="28" fill="url(#bg)"/>
+
+  <!-- decorative blobs -->
+  <g fill="#ffffff">
+    <circle cx="1130" cy="44" r="130" opacity="0.10"/>
+    <circle cx="1240" cy="250" r="96" opacity="0.10"/>
+    <circle cx="940" cy="312" r="72" opacity="0.08"/>
+  </g>
+
+  <!-- capsule pill icon -->
+  <g transform="translate(112 150) rotate(-28)">
+    <rect x="-72" y="-26" width="144" height="52" rx="26" fill="#ffffff"/>
+    <rect x="-72" y="-26" width="72" height="52" fill="#c7d2fe" clip-path="url(#cap)"/>
+    <line x1="0" y1="-26" x2="0" y2="26" stroke="#a5b4fc" stroke-width="3"/>
+    <circle cx="34" cy="-8" r="5" fill="#ffffff" opacity="0.85"/>
+  </g>
+
+  <!-- wordmark -->
+  <text x="214" y="150" font-family="'Segoe UI','Helvetica Neue',Arial,sans-serif" font-size="68" font-weight="800" fill="#ffffff" letter-spacing="-1">PinaPharm <tspan fill="#fde68a">AI</tspan> Agent</text>
+  <text x="218" y="204" font-family="'Apple SD Gothic Neo','Malgun Gothic','Noto Sans KR',sans-serif" font-size="27" fill="#eef2ff" opacity="0.95">AI 상담 약사 · 맑은 약사 — RAG 기반 영양제 상담</text>
+
+  <!-- tag pills -->
+  <g font-family="'Segoe UI',Arial,sans-serif" font-size="19" fill="#ffffff">
+    <g transform="translate(218 236)">
+      <rect width="118" height="36" rx="18" fill="#ffffff" opacity="0.16"/>
+      <text x="59" y="24" text-anchor="middle">LangGraph</text>
+    </g>
+    <g transform="translate(348 236)">
+      <rect width="156" height="36" rx="18" fill="#ffffff" opacity="0.16"/>
+      <text x="78" y="24" text-anchor="middle">Claude · Voyage</text>
+    </g>
+    <g transform="translate(516 236)">
+      <rect width="166" height="36" rx="18" fill="#ffffff" opacity="0.16"/>
+      <text x="83" y="24" text-anchor="middle">Next.js · FastAPI</text>
+    </g>
+  </g>
+</svg>
