@@ -7,5 +7,5 @@ export default defineConfig({
       "@": path.resolve(__dirname, "src"),
     },
   },
-  test: { environment: "node", include: ["tests/**/*.test.ts"] },
+  test: { environment: "node", include: ["tests/**/*.test.ts"], fileParallelism: false },
 });

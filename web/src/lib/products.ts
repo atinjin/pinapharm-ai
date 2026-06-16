@@ -3,6 +3,10 @@ import { upsertChunk } from "@/lib/knowledge";
 import { embed } from "@/lib/embeddings";
 import { normalize, cosineTopK } from "@/lib/vectors";
 
+// 의미검색 임계값/개수 (정규화 Voyage 벡터 기준, 추후 튜닝 가능)
+const SEMANTIC_MIN_SCORE = 0.2;
+const SEMANTIC_TOP_K = 10;
+
 export function parseTags(raw: string): string[] {
   try {
     const v = JSON.parse(raw);
@@ -74,7 +78,7 @@ async function semanticProductIds(queryText: string, k: number): Promise<number[
   const q = normalize(qvec);
   const chunks = await prisma.knowledgeChunk.findMany({ where: { kind: "product" } });
   return cosineTopK(q, chunks as unknown as Array<(typeof chunks)[number] & { embedding: Buffer }>, k)
-    .filter((c) => c.score > 0.2)
+    .filter((c) => c.score > SEMANTIC_MIN_SCORE)
     .map((c) => Number(c.refId))
     .filter((n) => Number.isFinite(n));
 }
@@ -93,7 +97,7 @@ export async function searchProducts(opts: { condition?: string; keyword?: strin
 
   let semantic: typeof all = [];
   try {
-    const ids = await semanticProductIds(terms.join(" "), 10);
+    const ids = await semanticProductIds(terms.join(" "), SEMANTIC_TOP_K);
     const byId = new Map(all.map((p) => [p.id, p]));
     semantic = ids.map((id) => byId.get(id)).filter((p): p is (typeof all)[number] => !!p);
   } catch (e) {
