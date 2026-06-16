@@ -3,7 +3,7 @@
 > 약사 상담 + 영양제 추천 프로토타입. 일반인이 웹 채팅으로 약사 지식 기반 상담을 받고,
 > 약사가 어드민에서 등록한 영양제를 상담 결과에 맞춰 추천·구매하는 시스템.
 
-- **작성일:** 2026-06-16
+- **작성일:** 2026-06-16 (갱신: 2026-06-17 — RAG 구현 반영)
 - **실행/테스트 방법:** [README.md](../README.md)
 - **설계 스펙:** [docs/superpowers/specs/](superpowers/)
 
@@ -52,9 +52,16 @@ agent/  FastAPI + LangGraph (Claude) 약사 에이전트 (tool-use 루프, Pytho
 - **에이전트 설정 편집**: 페르소나·시스템 프롬프트·응급 메시지·분류 프롬프트(`AgentSetting`, 저장 즉시 반영)
 - **상담 스킬 등록**: `ConsultationSkill` — Claude Code 스킬 모델(name + description + 본문, 점진적 공개)을 `load_consultation_skill` 도구로 온디맨드 로드
 
+### 5. RAG 검색·그라운딩 (Voyage 임베딩)
+
+- **Phase 1 — 제품 의미검색**: `searchProducts`를 하이브리드(의미∪lexical)로 — 동의어 사전에 없는 표현도 매칭. 추천 카드·적재 흐름은 유지.
+- **Phase 2 — 원료 지식 그라운딩**: `retrieve_knowledge` 도구 + `/api/agent-tools/retrieve-knowledge`로 식약처 원료 인정정보(기능성·주의사항·상호작용)를 검색해 답변 근거로 주입.
+- `KnowledgeChunk`(SQLite BLOB 벡터) + Node 코사인 top-k, 임베딩 실패 시 lexical 폴백. 색인 스크립트 `index:products`/`index:knowledge`.
+- 설계·계획: [spec](superpowers/specs/2026-06-16-rag-consultation-design.md) · [plan](superpowers/plans/2026-06-16-rag-consultation.md)
+
 ### 데이터 모델 (Prisma)
 `Pharmacist` · `Product` · `Consultation` · `Message` · `Recommendation` · `Order` ·
-`Customer` · `Identity` · `HealthProfile` · `AgentSetting` · `ConsultationSkill`
+`Customer` · `Identity` · `HealthProfile` · `AgentSetting` · `ConsultationSkill` · `KnowledgeChunk`
 
 ---
 
@@ -78,7 +85,8 @@ agent/  FastAPI + LangGraph (Claude) 약사 에이전트 (tool-use 루프, Pytho
 - [ ] `load_consultation_skill` 도구의 에이전트 통합 테스트
 
 ### D. 상담 품질
-- [ ] **RAG** — 제품·상담 지식 검색(구조만 열려 있음)
+- [x] **RAG** — 제품 의미검색 + 식약처 원료 지식 그라운딩 ✅ (위 "5. RAG 검색·그라운딩" 참고)
+- [ ] (RAG 운영) Voyage 결제수단 등록 후 제품 전량 색인 + 원료 코퍼스 20~30종 약사 검수 확장
 - [ ] 멀티에이전트 / 다단계 추론
 - [ ] **eval 하네스** — 상담 품질·안전 가드레일 회귀 평가
 
