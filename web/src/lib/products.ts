@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { upsertChunk } from "@/lib/knowledge";
 
 export function parseTags(raw: string): string[] {
   try {
@@ -11,6 +12,26 @@ export function parseTags(raw: string): string[] {
 
 export function stringifyTags(tags: string[]): string {
   return JSON.stringify(tags);
+}
+
+// 제품 1건을 KnowledgeChunk(kind=product)로 색인. 실패는 무시(임베딩 장애 시 lexical 폴백).
+export async function indexProduct(p: {
+  id: number; name: string; brand?: string | null; description?: string | null;
+  ingredients?: string | null; conditionTags: string;
+}): Promise<void> {
+  try {
+    const tags = parseTags(p.conditionTags).join(" ");
+    const text = [p.name, p.brand, p.description, p.ingredients, tags].filter(Boolean).join(" / ");
+    await upsertChunk({
+      kind: "product",
+      refId: String(p.id),
+      title: p.name,
+      text,
+      metadata: { brand: p.brand ?? null },
+    });
+  } catch (e) {
+    console.error(`product 색인 실패(무시) id=${p.id}`, e);
+  }
 }
 
 type Searchable = { name: string; description?: string | null; conditionTags: string };
@@ -68,9 +89,11 @@ export async function createProduct(input: {
   conditionTags?: string[]; imageUrl?: string; stock?: number;
 }) {
   const { conditionTags, ...rest } = input;
-  return prisma.product.create({
+  const product = await prisma.product.create({
     data: { ...rest, conditionTags: stringifyTags(conditionTags ?? []) },
   });
+  await indexProduct(product);
+  return product;
 }
 
 export async function updateProduct(id: number, input: {
@@ -79,10 +102,12 @@ export async function updateProduct(id: number, input: {
   stock?: number; isActive?: boolean;
 }) {
   const { conditionTags, ...rest } = input;
-  return prisma.product.update({
+  const product = await prisma.product.update({
     where: { id },
     data: { ...rest, ...(conditionTags ? { conditionTags: stringifyTags(conditionTags) } : {}) },
   });
+  await indexProduct(product);
+  return product;
 }
 
 export async function deleteProduct(id: number) {
@@ -111,9 +136,10 @@ export async function createManyProducts(
   for (let i = 0; i < inputs.length; i++) {
     const { conditionTags, ...rest } = inputs[i];
     try {
-      await prisma.product.create({
+      const row = await prisma.product.create({
         data: { ...rest, pharmacistId, conditionTags: stringifyTags(conditionTags ?? []) },
       });
+      await indexProduct(row);
       created++;
     } catch (e) {
       failed.push({ index: i, name: inputs[i].name, message: e instanceof Error ? e.message : "unknown" });
