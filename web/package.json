@@ -10,6 +10,8 @@
     "test": "vitest run",
     "seed": "tsx prisma/seed.ts",
     "import:mfds": "tsx scripts/import-mfds.ts",
+    "index:knowledge": "tsx scripts/index-knowledge.ts",
+    "index:products": "tsx scripts/index-products.ts",
     "db:reset": "prisma migrate reset --force"
   },
   "dependencies": {
@@ -29,6 +31,7 @@
     "@types/node": "^20.19.43",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "dotenv": "^17.4.2",
     "eslint": "^9",
     "eslint-config-next": "16.2.9",
     "postcss": "^8.5.15",

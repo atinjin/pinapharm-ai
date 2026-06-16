@@ -1,5 +1,6 @@
 import respx
 import httpx
+import pytest
 from app.tools import _fetch_products, search_products
 
 @respx.mock
@@ -53,3 +54,26 @@ def test_health_profile_tools_are_langchain_tools():
     assert get_health_profile.name == "get_health_profile"
     assert save_health_profile.name == "save_health_profile"
     assert "medications" in save_health_profile.args
+
+
+async def test_fetch_knowledge_calls_endpoint(monkeypatch):
+    captured = {}
+
+    class FakeResp:
+        def raise_for_status(self): pass
+        def json(self): return [{"title": "오메가3", "text": "...", "metadata": {}, "score": 0.9}]
+
+    class FakeClient:
+        def __init__(self, *a, **k): pass
+        async def __aenter__(self): return self
+        async def __aexit__(self, *a): pass
+        async def get(self, url, params=None):
+            captured["url"] = url; captured["params"] = params
+            return FakeResp()
+
+    monkeypatch.setattr(httpx, "AsyncClient", FakeClient)
+    from app.tools import _fetch_knowledge
+    out = await _fetch_knowledge(query="오메가", k=3)
+    assert out[0]["title"] == "오메가3"
+    assert captured["url"].endswith("/api/agent-tools/retrieve-knowledge")
+    assert captured["params"] == {"q": "오메가", "k": 3}

@@ -16,10 +16,12 @@ from app.tools import (
     _fetch_products,
     _fetch_health_profile,
     _save_health_profile,
+    _fetch_knowledge,
     search_products,
     get_health_profile,
     save_health_profile,
     load_consultation_skill,
+    retrieve_knowledge,
 )
 
 MODEL = os.environ.get("ANTHROPIC_MODEL", "claude-opus-4-8")
@@ -54,7 +56,7 @@ def route_triage(state: AgentState) -> Literal["agent", "emergency"]:
 async def agent_node(state: AgentState) -> dict:
     cfg = await get_config()
     model = _chat_model().bind_tools(
-        [search_products, get_health_profile, save_health_profile, load_consultation_skill]
+        [search_products, get_health_profile, save_health_profile, load_consultation_skill, retrieve_knowledge]
     )
     system = build_system_prompt(cfg)
     resp = await model.ainvoke([SystemMessage(content=system)] + state["messages"])
@@ -84,6 +86,9 @@ async def tools_node(state: AgentState, config: RunnableConfig) -> dict:
                 content = json.dumps(saved, ensure_ascii=False)
             elif name == "load_consultation_skill":
                 content = await fetch_skill_body(**call["args"])
+            elif name == "retrieve_knowledge":
+                knowledge = await _fetch_knowledge(**call["args"])
+                content = json.dumps(knowledge, ensure_ascii=False)
             else:
                 content = f"알 수 없는 도구: {name}"
         except Exception:
