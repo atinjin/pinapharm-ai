@@ -28,6 +28,7 @@ export default function AdminProductsPage() {
   const [sort, setSort] = useState<SortKey>("recent");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
+  const [selected, setSelected] = useState<Set<number>>(new Set());
   const [modal, setModal] = useState<null | "create" | "import">(null);
 
   async function load() {
@@ -67,6 +68,40 @@ export default function AdminProductsPage() {
   const totalPages = Math.max(1, Math.ceil(visible.length / pageSize));
   const safePage = Math.min(page, totalPages);
   const paged = visible.slice((safePage - 1) * pageSize, safePage * pageSize);
+
+  const pageIds = paged.map((p) => p.id);
+  const allOnPageSelected = pageIds.length > 0 && pageIds.every((id) => selected.has(id));
+
+  function toggleOne(id: number, checked: boolean) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (checked) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  }
+  function toggleAllOnPage() {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (allOnPageSelected) pageIds.forEach((id) => next.delete(id));
+      else pageIds.forEach((id) => next.add(id));
+      return next;
+    });
+  }
+  async function deleteSelected() {
+    if (selected.size === 0) return;
+    if (!window.confirm(`선택한 ${selected.size}개 영양제를 삭제할까요?`)) return;
+    const results = await Promise.allSettled(
+      [...selected].map((id) => fetch(`/api/products/${id}`, { method: "DELETE" }))
+    );
+    const failed = results.filter(
+      (r) => r.status === "rejected" || (r.status === "fulfilled" && !r.value.ok)
+    ).length;
+    setSelected(new Set());
+    await load();
+    if (failed)
+      window.alert(`${failed}개는 삭제하지 못했습니다. (추천·주문 이력이 연결된 상품일 수 있습니다)`);
+  }
 
   const field =
     "w-full rounded-xl border border-white/60 bg-white/70 px-3.5 py-2.5 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-sky-300 focus:bg-white";
@@ -136,12 +171,34 @@ export default function AdminProductsPage() {
         </select>
       </div>
 
-      <div className="mb-3 flex items-center justify-between px-1">
-        <h2 className="text-sm font-semibold text-slate-600">등록된 영양제</h2>
-        <span className="rounded-full bg-white/60 px-2.5 py-0.5 text-xs font-medium text-slate-500">
-          {visible.length}
-          {query.trim() ? ` / ${products.length}` : ""}개
-        </span>
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2 px-1">
+        <div className="flex items-center gap-3">
+          {visible.length > 0 && (
+            <label className="flex items-center gap-1.5 text-sm text-slate-500">
+              <input
+                type="checkbox"
+                checked={allOnPageSelected}
+                onChange={toggleAllOnPage}
+                className="h-4 w-4 accent-indigo-500"
+                aria-label="현재 페이지 전체 선택"
+              />
+              전체
+            </label>
+          )}
+          <h2 className="text-sm font-semibold text-slate-600">등록된 영양제</h2>
+          <span className="rounded-full bg-white/60 px-2.5 py-0.5 text-xs font-medium text-slate-500">
+            {visible.length}
+            {query.trim() ? ` / ${products.length}` : ""}개
+          </span>
+        </div>
+        {selected.size > 0 && (
+          <button
+            onClick={deleteSelected}
+            className="rounded-full border border-rose-200 bg-rose-50 px-4 py-1.5 text-sm font-medium text-rose-600 transition hover:bg-rose-100 active:scale-95"
+          >
+            선택 삭제 ({selected.size})
+          </button>
+        )}
       </div>
 
       {visible.length === 0 ? (
@@ -152,7 +209,13 @@ export default function AdminProductsPage() {
         <>
           <ul className="grid gap-3">
             {paged.map((p) => (
-              <AdminProductItem key={p.id} p={p} onChanged={load} />
+              <AdminProductItem
+                key={p.id}
+                p={p}
+                onChanged={load}
+                selected={selected.has(p.id)}
+                onToggleSelected={toggleOne}
+              />
             ))}
           </ul>
 

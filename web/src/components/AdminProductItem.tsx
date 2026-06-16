@@ -13,7 +13,17 @@ export type AdminProduct = {
   createdAt: string;
 };
 
-export function AdminProductItem({ p, onChanged }: { p: AdminProduct; onChanged: () => void }) {
+export function AdminProductItem({
+  p,
+  onChanged,
+  selected,
+  onToggleSelected,
+}: {
+  p: AdminProduct;
+  onChanged: () => void;
+  selected?: boolean;
+  onToggleSelected?: (id: number, checked: boolean) => void;
+}) {
   const [editing, setEditing] = useState(false);
   const [price, setPrice] = useState(String(p.price));
   const [stock, setStock] = useState(String(p.stock));
@@ -41,7 +51,17 @@ export function AdminProductItem({ p, onChanged }: { p: AdminProduct; onChanged:
 
   return (
     <li className={`glass rounded-2xl p-4 transition ${!p.isActive ? "opacity-60" : ""}`}>
-      <div className="flex items-start justify-between gap-3">
+      <div className="flex items-start gap-3">
+        {onToggleSelected && (
+          <input
+            type="checkbox"
+            checked={!!selected}
+            onChange={(e) => onToggleSelected(p.id, e.target.checked)}
+            className="mt-1 h-4 w-4 shrink-0 accent-indigo-500"
+            aria-label={`${p.name} 선택`}
+          />
+        )}
+        <div className="flex min-w-0 flex-1 items-start justify-between gap-3">
         <div className="flex min-w-0 gap-3">
           {p.imageUrl && (
             // eslint-disable-next-line @next/next/no-img-element
@@ -86,6 +106,7 @@ export function AdminProductItem({ p, onChanged }: { p: AdminProduct; onChanged:
           >
             삭제
           </button>
+        </div>
         </div>
       </div>
 
