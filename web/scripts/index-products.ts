@@ -1,3 +1,4 @@
+import "dotenv/config";
 import { prisma } from "../src/lib/prisma";
 import { indexProduct } from "../src/lib/products";
 

@@ -5,7 +5,7 @@ const MODEL = process.env.EMBEDDING_MODEL ?? "voyage-3.5-lite";
 export async function embed(texts: string[], inputType: "document" | "query"): Promise<number[][]> {
   if (texts.length === 0) return [];
   if (PROVIDER !== "voyage") throw new Error(`지원하지 않는 EMBEDDING_PROVIDER: ${PROVIDER}`);
-  const key = process.env.VOYAGE_API_KEY;
+  const key = process.env.VOYAGE_API_KEY ?? process.env.VOYAGE_TOKEN;
   if (!key) throw new Error("VOYAGE_API_KEY 가 설정되지 않았습니다");
 
   const res = await fetch("https://api.voyageai.com/v1/embeddings", {
