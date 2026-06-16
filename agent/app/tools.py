@@ -75,6 +75,24 @@ async def save_health_profile(
     return {}
 
 
+async def _fetch_knowledge(query: str = "", k: int = 4, base_url: str | None = None) -> list[dict]:
+    """원료 지식을 web 내부 API에서 의미검색하는 순수 HTTP 호출."""
+    base = base_url or os.environ.get("WEB_INTERNAL_URL", "http://localhost:3000")
+    async with httpx.AsyncClient(timeout=10) as client:
+        resp = await client.get(
+            f"{base}/api/agent-tools/retrieve-knowledge", params={"q": query, "k": k}
+        )
+        resp.raise_for_status()
+        return resp.json()
+
+
+@tool
+async def retrieve_knowledge(query: str, k: int = 4) -> list[dict]:
+    """건강기능식품 원료의 기능성·주의사항·상호작용 근거를 검색한다.
+    성분·복용·상호작용·안전 안내를 하기 전에 호출해 검색된 근거에 기반해 답한다."""
+    return await _fetch_knowledge(query=query, k=k)
+
+
 @tool
 async def load_consultation_skill(name: str) -> str:
     """시스템 프롬프트의 '사용 가능한 상담 스킬' 목록에 있는 상담 절차를 name으로 불러온다.
