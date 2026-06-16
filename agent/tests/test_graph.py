@@ -117,3 +117,22 @@ async def test_save_health_profile_dispatch_passes_fields():
     save.assert_awaited_once()
     assert save.await_args.args[0] == "s1"
     assert save.await_args.kwargs.get("medications") == ["혈압약"]
+
+
+async def test_tools_node_dispatches_retrieve_knowledge(monkeypatch):
+    from unittest.mock import patch as _patch, MagicMock
+    from app import graph
+
+    async def fake_fetch_knowledge(**kwargs):
+        return [{"title": "오메가3", "text": "출혈 주의", "metadata": {}, "score": 0.9}]
+
+    monkeypatch.setattr(graph, "_fetch_knowledge", fake_fetch_knowledge)
+
+    ai = AIMessage(content="", tool_calls=[{"name": "retrieve_knowledge", "args": {"query": "오메가", "k": 4}, "id": "t1"}])
+    state = {"messages": [ai], "recommended_ids": [], "tool_turns": 0, "triage": "normal"}
+    config = {"configurable": {"thread_id": "s1"}}
+    with _patch("app.graph.get_stream_writer", return_value=MagicMock()):
+        out = await graph.tools_node(state, config)
+    msg = out["messages"][0]
+    assert "오메가3" in msg.content
+    assert msg.name == "retrieve_knowledge"
