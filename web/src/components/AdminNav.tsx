@@ -6,6 +6,7 @@ const TABS = [
   { href: "/admin", label: "상품 관리" },
   { href: "/admin/agent", label: "에이전트 설정" },
   { href: "/admin/skills", label: "상담 스킬" },
+  { href: "/admin/knowledge", label: "지식 베이스" },
 ];
 
 export function AdminNav() {
