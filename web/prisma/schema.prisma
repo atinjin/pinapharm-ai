@@ -107,18 +107,35 @@ model ConsultationSkill {
   updatedAt   DateTime @updatedAt
 }
 
+model KnowledgeDocument {
+  id         Int              @id @default(autoincrement())
+  category   String           @default("general") // ingredient | reference | note 등
+  title      String
+  body       String // 원본 전체 텍스트
+  source     String           @default("{}") // JSON: url/author/date/출처
+  reviewedAt DateTime? // null = 검수 필요
+  chunks     KnowledgeChunk[]
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+}
+
 model KnowledgeChunk {
-  id        Int      @id @default(autoincrement())
-  kind      String // "product" | "ingredient"
-  refId     String? // product: productId / ingredient: 원료명
-  title     String
-  text      String
-  metadata  String   @default("{}")
-  embedding Bytes
-  model     String
-  updatedAt DateTime @updatedAt
+  id             Int                @id @default(autoincrement())
+  kind           String // "product" | "knowledge"
+  refId          String? // product: productId
+  document       KnowledgeDocument? @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  documentId     Int? // null = 제품 청크
+  chunkIndex     Int                @default(0)
+  title          String
+  text           String
+  metadata       String             @default("{}")
+  embedding      Bytes
+  model          String
+  embeddingStale Boolean            @default(false)
+  updatedAt      DateTime           @updatedAt
 
   @@index([kind])
+  @@index([documentId])
 }
 
 model HealthProfile {
