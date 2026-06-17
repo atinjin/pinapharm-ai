@@ -7,7 +7,7 @@ export async function GET(req: NextRequest) {
   const k = Number(req.nextUrl.searchParams.get("k") ?? "4");
   if (!q) return NextResponse.json({ error: "q가 필요합니다" }, { status: 400 });
   try {
-    const hits = await retrieve(q, "ingredient", Number.isFinite(k) ? k : 4);
+    const hits = await retrieve(q, Number.isFinite(k) ? k : 4);
     return NextResponse.json(hits);
   } catch {
     // 임베딩 실패 등 → 근거 없음(채팅은 계속)
