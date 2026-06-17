@@ -10,6 +10,9 @@ export type AdminProduct = {
   conditionTags: string;
   isActive: boolean;
   imageUrl: string | null;
+  form: string | null;
+  doseAmount: number | null;
+  doseUnit: string | null;
   createdAt: string;
 };
 
@@ -31,6 +34,9 @@ export function AdminProductItem({
   const [stock, setStock] = useState(String(p.stock));
   const [active, setActive] = useState(p.isActive);
   const [imageUrl, setImageUrl] = useState(p.imageUrl ?? "");
+  const [dosageForm, setDosageForm] = useState(p.form ?? "");
+  const [doseAmount, setDoseAmount] = useState(p.doseAmount != null ? String(p.doseAmount) : "");
+  const [doseUnit, setDoseUnit] = useState(p.doseUnit ?? "");
   const [busy, setBusy] = useState(false);
   const tags = (JSON.parse(p.conditionTags || "[]") as string[]) ?? [];
 
@@ -39,7 +45,15 @@ export function AdminProductItem({
     await fetch(`/api/products/${p.id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ price: Number(price || 0), stock: Number(stock || 0), isActive: active, imageUrl: imageUrl || undefined }),
+      body: JSON.stringify({
+        price: Number(price || 0),
+        stock: Number(stock || 0),
+        isActive: active,
+        imageUrl: imageUrl || undefined,
+        form: dosageForm || undefined,
+        doseAmount: doseAmount ? Number(doseAmount) : undefined,
+        doseUnit: doseUnit || undefined,
+      }),
     });
     setBusy(false);
     setEditing(false);
@@ -130,6 +144,33 @@ export function AdminProductItem({
           <label className="flex items-center gap-1.5 pb-1.5 text-sm text-slate-600">
             <input type="checkbox" checked={active} onChange={(e) => setActive(e.target.checked)} className="h-4 w-4 accent-indigo-500" />
             진열 활성화
+          </label>
+          <label className="text-xs text-slate-500">
+            제형
+            <input
+              value={dosageForm}
+              onChange={(e) => setDosageForm(e.target.value)}
+              placeholder="정/캡슐/액상"
+              className="mt-1 block w-28 rounded-lg border border-white/60 bg-white/80 px-3 py-1.5 text-sm text-slate-800 outline-none focus:border-sky-300"
+            />
+          </label>
+          <label className="text-xs text-slate-500">
+            용량
+            <input
+              type="number"
+              value={doseAmount}
+              onChange={(e) => setDoseAmount(e.target.value)}
+              className="mt-1 block w-24 rounded-lg border border-white/60 bg-white/80 px-3 py-1.5 text-sm text-slate-800 outline-none focus:border-sky-300"
+            />
+          </label>
+          <label className="text-xs text-slate-500">
+            단위
+            <input
+              value={doseUnit}
+              onChange={(e) => setDoseUnit(e.target.value)}
+              placeholder="mg/g/mL"
+              className="mt-1 block w-24 rounded-lg border border-white/60 bg-white/80 px-3 py-1.5 text-sm text-slate-800 outline-none focus:border-sky-300"
+            />
           </label>
           <label className="w-full text-xs text-slate-500">
             이미지 URL
