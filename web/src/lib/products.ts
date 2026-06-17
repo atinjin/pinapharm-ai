@@ -40,10 +40,22 @@ export async function indexProduct(p: {
   }
 }
 
-type Searchable = { name: string; description?: string | null; conditionTags: string };
+type Searchable = {
+  name: string;
+  description?: string | null;
+  ingredients?: string | null;
+  ingredientsStructured?: string | null;
+  conditionTags: string;
+};
 
 export function matchesQuery(p: Searchable, q: string): boolean {
-  const hay = [p.name, p.description ?? "", parseTags(p.conditionTags).join(" ")]
+  const hay = [
+    p.name,
+    p.description ?? "",
+    p.ingredients ?? "",
+    p.ingredientsStructured ?? "",
+    parseTags(p.conditionTags).join(" "),
+  ]
     .join(" ")
     .toLowerCase();
   return hay.includes(q.toLowerCase());
@@ -83,13 +95,43 @@ async function semanticProductIds(queryText: string, k: number): Promise<number[
     .filter((n) => Number.isFinite(n));
 }
 
-export async function searchProducts(opts: { condition?: string; keyword?: string }) {
+export type ProductSearchCriteria = {
+  condition?: string;
+  keyword?: string;
+  ingredients?: string[];
+  form?: string;
+  minDose?: number;
+  maxDose?: number;
+  excludeAllergens?: string[];
+};
+
+// 컨텍스트 기반 구조화 제품 검색: 구조화 필터(데이터 있는 경우만 불일치 제외, 알레르겐은 안전상 하드 제외)
+// + lexical·의미 랭킹. 반환 형태(Product[])·추천 파이프라인은 보존.
+export async function searchProducts(opts: ProductSearchCriteria) {
   const all = await prisma.product.findMany({ where: { isActive: true } });
-  const terms = [opts.condition, opts.keyword].filter(Boolean) as string[];
-  if (terms.length === 0) return all;
+  const ingredients = opts.ingredients ?? [];
+  const exclude = (opts.excludeAllergens ?? []).map((a) => a.toLowerCase()).filter(Boolean);
+
+  const filtered = all.filter((p) => {
+    if (exclude.length) {
+      const hay = [p.name, p.ingredients ?? "", p.ingredientsStructured ?? "", parseTags(p.conditionTags).join(" ")]
+        .join(" ")
+        .toLowerCase();
+      if (exclude.some((a) => hay.includes(a))) return false; // 알레르겐 포함 → 제외(안전)
+    }
+    if (opts.form && p.form && p.form.toLowerCase() !== opts.form.toLowerCase()) return false;
+    if (p.doseAmount != null) {
+      if (opts.minDose != null && p.doseAmount < opts.minDose) return false;
+      if (opts.maxDose != null && p.doseAmount > opts.maxDose) return false;
+    }
+    return true;
+  });
+
+  const terms = [opts.condition, opts.keyword, ...ingredients].filter(Boolean) as string[];
+  if (terms.length === 0) return filtered;
 
   const expanded = expandQueryTags(terms.join(" "));
-  const lexical = all.filter((p) => {
+  const lexical = filtered.filter((p) => {
     if (terms.some((t) => matchesQuery(p, t))) return true;
     if (expanded.size === 0) return false;
     return parseTags(p.conditionTags).some((t) => expanded.has(t));
@@ -98,7 +140,7 @@ export async function searchProducts(opts: { condition?: string; keyword?: strin
   let semantic: typeof all = [];
   try {
     const ids = await semanticProductIds(terms.join(" "), SEMANTIC_TOP_K);
-    const byId = new Map(all.map((p) => [p.id, p]));
+    const byId = new Map(filtered.map((p) => [p.id, p]));
     semantic = ids.map((id) => byId.get(id)).filter((p): p is (typeof all)[number] => !!p);
   } catch (e) {
     console.error("의미검색 실패 → lexical만 사용", e);
@@ -119,6 +161,7 @@ export async function listProducts() {
 export async function createProduct(input: {
   name: string; price: number; pharmacistId: number;
   brand?: string; description?: string; ingredients?: string;
+  form?: string; doseAmount?: number; doseUnit?: string; ingredientsStructured?: string;
   conditionTags?: string[]; imageUrl?: string; stock?: number;
 }) {
   const { conditionTags, ...rest } = input;
@@ -131,7 +174,8 @@ export async function createProduct(input: {
 
 export async function updateProduct(id: number, input: {
   name?: string; price?: number; brand?: string; description?: string;
-  ingredients?: string; conditionTags?: string[]; imageUrl?: string;
+  ingredients?: string; form?: string; doseAmount?: number; doseUnit?: string; ingredientsStructured?: string;
+  conditionTags?: string[]; imageUrl?: string;
   stock?: number; isActive?: boolean;
 }) {
   const { conditionTags, ...rest } = input;
