@@ -1,5 +1,6 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { RevisionHistory } from "@/components/RevisionHistory";
 
 type Settings = {
   persona: string;
@@ -19,12 +20,16 @@ export function AdminAgentSettings() {
   const [settings, setSettings] = useState<Settings | null>(null);
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [historyKey, setHistoryKey] = useState<keyof Settings | null>(null);
+
+  const load = useCallback(async () => {
+    const res = await fetch("/api/admin/agent-settings");
+    setSettings(await res.json());
+  }, []);
 
   useEffect(() => {
-    fetch("/api/admin/agent-settings")
-      .then((r) => r.json())
-      .then(setSettings);
-  }, []);
+    load();
+  }, [load]);
 
   async function save() {
     if (!settings) return;
@@ -48,7 +53,18 @@ export function AdminAgentSettings() {
     <div className="grid gap-4">
       {FIELDS.map(({ key, label, hint, rows }) => (
         <label key={key} className="block text-xs font-medium text-slate-500">
-          {label} <span className="font-normal text-slate-400">· {hint}</span>
+          <span className="flex items-center justify-between">
+            <span>
+              {label} <span className="font-normal text-slate-400">· {hint}</span>
+            </span>
+            <button
+              type="button"
+              onClick={() => setHistoryKey(key)}
+              className="rounded-full border border-white/60 bg-white/60 px-2.5 py-0.5 text-[11px] font-medium text-slate-500 transition hover:bg-white/90"
+            >
+              이력
+            </button>
+          </span>
           <textarea
             value={settings[key]}
             onChange={(e) => {
@@ -70,6 +86,16 @@ export function AdminAgentSettings() {
         </button>
         {saved && <span className="text-sm text-teal-600">저장되었습니다 · 상담에 곧 반영됩니다</span>}
       </div>
+
+      <RevisionHistory
+        open={!!historyKey}
+        entityType="agentSetting"
+        entityId={historyKey ?? ""}
+        diffKey="value"
+        currentText={historyKey ? settings[historyKey] : ""}
+        onClose={() => setHistoryKey(null)}
+        onRolledBack={load}
+      />
     </div>
   );
 }

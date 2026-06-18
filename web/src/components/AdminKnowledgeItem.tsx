@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import type { DocInitial } from "@/components/AdminKnowledgeForm";
+import { RevisionHistory } from "@/components/RevisionHistory";
 
 export type KnowledgeDocRow = {
   id: number;
@@ -29,7 +30,16 @@ export function AdminKnowledgeItem({
   const [open, setOpen] = useState(false);
   const [chunks, setChunks] = useState<Chunk[] | null>(null);
   const [busy, setBusy] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [currentBody, setCurrentBody] = useState("");
   const reviewed = !!doc.reviewedAt;
+
+  async function startHistory() {
+    const res = await fetch(`/api/admin/knowledge/${doc.id}`);
+    const full = await res.json();
+    setCurrentBody(full.body ?? "");
+    setHistoryOpen(true);
+  }
 
   async function toggleChunks() {
     if (!open && !chunks) {
@@ -87,6 +97,7 @@ export function AdminKnowledgeItem({
         </div>
         <div className="flex shrink-0 flex-wrap justify-end gap-2">
           <button onClick={toggleChunks} className={btn}>{open ? "청크 닫기" : `청크 보기`}</button>
+          <button onClick={startHistory} className={btn}>이력</button>
           <button onClick={startEdit} className={btn}>수정</button>
           <button onClick={toggleReviewed} disabled={busy} className={btn}>{reviewed ? "검수 해제" : "검수 완료"}</button>
           {doc.staleCount > 0 && (
@@ -113,6 +124,16 @@ export function AdminKnowledgeItem({
           {chunks.length === 0 && <li className="text-xs text-slate-400">청크가 없습니다.</li>}
         </ul>
       )}
+
+      <RevisionHistory
+        open={historyOpen}
+        entityType="knowledgeDocument"
+        entityId={String(doc.id)}
+        diffKey="body"
+        currentText={currentBody}
+        onClose={() => setHistoryOpen(false)}
+        onRolledBack={onChanged}
+      />
     </li>
   );
 }
