@@ -20,10 +20,32 @@ async def test_fetch_products_omits_empty_params():
     await _fetch_products(condition="피로", keyword="", base_url="http://web.test")
     assert route.calls.last.request.url.params.get("keyword") is None
 
+@respx.mock
+async def test_fetch_products_structured_params():
+    route = respx.get("http://web.test/api/agent-tools/search-products").mock(
+        return_value=httpx.Response(200, json=[])
+    )
+    await _fetch_products(
+        condition="피로",
+        ingredients=["마그네슘"],
+        form="정",
+        min_dose=300,
+        exclude_allergens=["유당"],
+        base_url="http://web.test",
+    )
+    p = route.calls.last.request.url.params
+    assert p.get("condition") == "피로"
+    assert p.get("ingredients") == "마그네슘"
+    assert p.get("form") == "정"
+    assert p.get("minDose") == "300"
+    assert p.get("excludeAllergens") == "유당"
+
 def test_search_products_is_langchain_tool():
     # bind_tools에 넘길 수 있는 LangChain 도구여야 한다
     assert search_products.name == "search_products"
     assert "condition" in search_products.args
+    assert "form" in search_products.args
+    assert "ingredients" in search_products.args
 
 @respx.mock
 async def test_fetch_health_profile_calls_web_api():

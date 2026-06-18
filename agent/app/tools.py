@@ -8,11 +8,30 @@ from app.config_client import fetch_skill_body
 async def _fetch_products(
     condition: str = "",
     keyword: str = "",
+    ingredients: list[str] | None = None,
+    form: str = "",
+    min_dose: float | None = None,
+    max_dose: float | None = None,
+    exclude_allergens: list[str] | None = None,
     base_url: str | None = None,
 ) -> list[dict]:
-    """이 약국이 취급하는 영양제를 condition/keyword로 조회하는 순수 HTTP 호출."""
+    """이 약국 영양제를 구조화 기준으로 조회하는 순수 HTTP 호출."""
     base = base_url or os.environ.get("WEB_INTERNAL_URL", "http://localhost:3000")
-    params = {k: v for k, v in {"condition": condition, "keyword": keyword}.items() if v}
+    params: dict[str, str] = {}
+    if condition:
+        params["condition"] = condition
+    if keyword:
+        params["keyword"] = keyword
+    if form:
+        params["form"] = form
+    if ingredients:
+        params["ingredients"] = ",".join(ingredients)
+    if exclude_allergens:
+        params["excludeAllergens"] = ",".join(exclude_allergens)
+    if min_dose is not None:
+        params["minDose"] = str(min_dose)
+    if max_dose is not None:
+        params["maxDose"] = str(max_dose)
     async with httpx.AsyncClient(timeout=10) as client:
         resp = await client.get(f"{base}/api/agent-tools/search-products", params=params)
         resp.raise_for_status()
@@ -20,10 +39,28 @@ async def _fetch_products(
 
 
 @tool
-async def search_products(condition: str = "", keyword: str = "") -> list[dict]:
-    """이 약국이 취급하는 영양제를 증상(condition)이나 키워드(keyword)로 검색한다.
-    추천 전 반드시 호출한다. condition 예: 피로, 눈건강 / keyword 예: 비타민C."""
-    return await _fetch_products(condition=condition, keyword=keyword)
+async def search_products(
+    condition: str = "",
+    keyword: str = "",
+    ingredients: list[str] | None = None,
+    form: str = "",
+    min_dose: float | None = None,
+    max_dose: float | None = None,
+    exclude_allergens: list[str] | None = None,
+) -> list[dict]:
+    """이 약국이 취급하는 영양제를 구조화 기준으로 검색한다. 대화 맥락·건강 프로필을 바탕으로 채운다:
+    condition(증상 예: 피로·눈건강), keyword(예: 비타민C), ingredients(원하는 성분 목록 예: ["마그네슘"]),
+    form(제형 예: 정/캡슐/액상/분말), min_dose·max_dose(용량 범위, 제품 표기 단위 기준),
+    exclude_allergens(상담자 알레르기·제외 성분 목록). 추천 전 반드시 호출하고, 결과 안에서만 추천한다."""
+    return await _fetch_products(
+        condition=condition,
+        keyword=keyword,
+        ingredients=ingredients,
+        form=form,
+        min_dose=min_dose,
+        max_dose=max_dose,
+        exclude_allergens=exclude_allergens,
+    )
 
 
 async def _fetch_health_profile(session_id: str, base_url: str | None = None) -> dict:

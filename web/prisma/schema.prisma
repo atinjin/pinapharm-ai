@@ -23,6 +23,10 @@ model Product {
   description   String?
   price         Int
   ingredients   String?
+  form          String?   // 제형: 정/캡슐/액상/분말/스틱/젤리 등
+  doseAmount    Float?    // 용량 수치 (예: 300)
+  doseUnit      String?   // 용량 단위 (mg/g/mL/IU 등)
+  ingredientsStructured String? // JSON [{name, amount, unit}] (선택)
   conditionTags String    @default("[]")
   imageUrl      String?
   stock         Int       @default(0)
