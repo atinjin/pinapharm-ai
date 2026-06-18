@@ -45,6 +45,13 @@ export function AdminKnowledgeForm({
     setPreview(false);
   }
 
+  // 같은 문서로 다시 열 때도 편집 모드로 시작
+  const [prevOpen, setPrevOpen] = useState(false);
+  if (open !== prevOpen) {
+    setPrevOpen(open);
+    if (open) setPreview(false);
+  }
+
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true);

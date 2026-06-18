@@ -84,7 +84,10 @@ export function AdminSkillItem({ s, onChanged }: { s: AdminSkill; onChanged: () 
             이력
           </button>
           <button
-            onClick={() => setEditing((v) => !v)}
+            onClick={() => {
+              setEditing((v) => !v);
+              setPreview(false);
+            }}
             className="rounded-full border border-white/60 bg-white/60 px-3 py-1.5 text-sm font-medium text-slate-600 transition hover:bg-white/90 active:scale-95"
           >
             {editing ? "닫기" : "수정"}

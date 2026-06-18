@@ -48,4 +48,21 @@ describe("rollbackRevision", () => {
     expect(after!.body).toBe("본문 v1");
     await prisma.knowledgeDocument.delete({ where: { id: d.id } });
   });
+
+  it("throws on a corrupted snapshot (missing required field)", async () => {
+    const s = await createSkill({ name: `corrupt-${Date.now()}`, description: "d", body: "v" });
+    const rev = await prisma.revision.create({
+      data: { entityType: "skill", entityId: String(s.id), snapshot: JSON.stringify({ name: "x", description: "y" }) }, // body 누락
+    });
+    await expect(rollbackRevision(rev.id)).rejects.toThrow();
+    await deleteSkill(s.id);
+  });
+
+  it("throws when the target entity is gone", async () => {
+    const s = await createSkill({ name: `gone-${Date.now()}`, description: "d", body: "v1" });
+    await updateSkill(s.id, { body: "v2" });
+    const rev = (await listRevisions("skill", String(s.id)))[0];
+    await deleteSkill(s.id);
+    await expect(rollbackRevision(rev.id)).rejects.toThrow();
+  });
 });

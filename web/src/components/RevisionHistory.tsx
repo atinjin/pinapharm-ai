@@ -26,10 +26,12 @@ export function RevisionHistory({
   const [revs, setRevs] = useState<Rev[]>([]);
   const [selected, setSelected] = useState<Rev | null>(null);
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     if (!open) return;
     setSelected(null);
+    setError("");
     fetch(`/api/admin/revisions?entityType=${entityType}&entityId=${encodeURIComponent(entityId)}`)
       .then((r) => r.json())
       .then((d) => setRevs(Array.isArray(d) ? d : []));
@@ -38,13 +40,22 @@ export function RevisionHistory({
   async function rollback() {
     if (!selected) return;
     setBusy(true);
-    await fetch(`/api/admin/revisions/${selected.id}/rollback`, { method: "POST" });
+    setError("");
+    const res = await fetch(`/api/admin/revisions/${selected.id}/rollback`, { method: "POST" });
     setBusy(false);
+    if (!res.ok) {
+      const d = await res.json().catch(() => ({}));
+      setError(typeof d.error === "string" ? d.error : "롤백에 실패했습니다.");
+      return;
+    }
     onRolledBack();
     onClose();
   }
 
-  const parts = selected ? diffLines(currentText, String(selected.snapshot[diffKey] ?? "")) : [];
+  const MAX_DIFF = 50000;
+  const selText = selected ? String(selected.snapshot[diffKey] ?? "") : "";
+  const tooLarge = !!selected && (currentText.length > MAX_DIFF || selText.length > MAX_DIFF);
+  const parts = selected && !tooLarge ? diffLines(currentText, selText) : [];
 
   return (
     <Modal open={open} title="버전 이력" onClose={onClose}>
@@ -74,16 +85,21 @@ export function RevisionHistory({
                 현재 ↔ 선택 버전 — <span className="text-rose-600">빨강=롤백 시 사라짐</span> ·{" "}
                 <span className="text-teal-700">초록=롤백 시 복원됨</span>
               </p>
-              <pre className="max-h-56 overflow-auto whitespace-pre-wrap break-words rounded-lg bg-slate-50 p-2 text-xs leading-relaxed">
-                {parts.map((p, i) => (
-                  <span
-                    key={i}
-                    className={p.added ? "bg-teal-100 text-teal-800" : p.removed ? "bg-rose-100 text-rose-700 line-through" : "text-slate-500"}
-                  >
-                    {p.value}
-                  </span>
-                ))}
-              </pre>
+              {tooLarge ? (
+                <p className="text-xs text-amber-600">내용이 너무 커서 diff 미리보기를 생략합니다(롤백은 가능).</p>
+              ) : (
+                <pre className="max-h-56 overflow-auto whitespace-pre-wrap break-words rounded-lg bg-slate-50 p-2 text-xs leading-relaxed">
+                  {parts.map((p, i) => (
+                    <span
+                      key={i}
+                      className={p.added ? "bg-teal-100 text-teal-800" : p.removed ? "bg-rose-100 text-rose-700 line-through" : "text-slate-500"}
+                    >
+                      {p.value}
+                    </span>
+                  ))}
+                </pre>
+              )}
+              {error && <p className="mt-2 text-sm text-rose-600">{error}</p>}
               <button
                 onClick={rollback}
                 disabled={busy}

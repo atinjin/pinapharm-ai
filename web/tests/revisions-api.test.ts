@@ -40,4 +40,11 @@ describe("admin/revisions API", () => {
     const res = await listRoute(new NextRequest("http://localhost/api/admin/revisions"));
     expect(res.status).toBe(400);
   });
+
+  it("400 on non-numeric rollback id", async () => {
+    const res = await rollbackRoute(new NextRequest("http://localhost/x", { method: "POST" }), {
+      params: Promise.resolve({ id: "abc" }),
+    });
+    expect(res.status).toBe(400);
+  });
 });

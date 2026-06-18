@@ -53,6 +53,6 @@ async def skill_dryrun(req: SkillDryrunRequest):
         )
         text = resp.content if isinstance(resp.content, str) else str(resp.content)
         return {"response": text}
-    except Exception:
-        logger.exception("skill-dryrun 실패")
+    except Exception as e:
+        logger.error("skill-dryrun 실패: %s", type(e).__name__)  # 트레이스백 미노출(키/내부 정보 보호)
         return JSONResponse(status_code=502, content={"error": "드라이런 사용 불가 (키/에이전트 확인)"})

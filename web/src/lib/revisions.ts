@@ -33,11 +33,17 @@ export async function recordRevision(
 }
 
 function toRow(r: { id: number; entityType: string; entityId: string; snapshot: string; summary: string | null; createdAt: Date }): RevisionRow {
+  let snapshot: unknown = {};
+  try {
+    snapshot = JSON.parse(r.snapshot);
+  } catch {
+    console.error(`revision 스냅샷 파싱 실패 id=${r.id}`);
+  }
   return {
     id: r.id,
     entityType: r.entityType,
     entityId: r.entityId,
-    snapshot: JSON.parse(r.snapshot),
+    snapshot,
     summary: r.summary,
     createdAt: r.createdAt.toISOString(),
   };
