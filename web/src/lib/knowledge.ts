@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { embed, EMBEDDING_MODEL_NAME } from "@/lib/embeddings";
 import { normalize, serialize, cosineTopK } from "@/lib/vectors";
 import { chunk } from "@/lib/chunking";
+import { recordRevision } from "@/lib/revisions";
 
 export type ChunkInput = {
   kind: "product" | "knowledge";
@@ -74,6 +75,12 @@ export async function createDocument(input: {
       },
     });
   }
+  await recordRevision(
+    "knowledgeDocument",
+    String(doc.id),
+    { category: input.category ?? "general", title: input.title, body: input.body, source: input.source ?? {} },
+    "생성"
+  );
   return { id: doc.id, chunks: pieces.length };
 }
 
