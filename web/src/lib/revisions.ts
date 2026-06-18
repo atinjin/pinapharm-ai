@@ -46,7 +46,7 @@ function toRow(r: { id: number; entityType: string; entityId: string; snapshot: 
 export async function listRevisions(entityType: EntityType, entityId: string): Promise<RevisionRow[]> {
   const rows = await prisma.revision.findMany({
     where: { entityType, entityId: String(entityId) },
-    orderBy: { createdAt: "desc" },
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }], // 동일 타임스탬프 tie를 id로 안정 정렬
   });
   return rows.map(toRow);
 }
