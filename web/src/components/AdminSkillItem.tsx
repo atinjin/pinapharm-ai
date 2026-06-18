@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { RevisionHistory } from "@/components/RevisionHistory";
 import { MarkdownPreview } from "@/components/MarkdownPreview";
+import { AdminSkillDryrun } from "@/components/AdminSkillDryrun";
 
 export type AdminSkill = {
   id: number;
@@ -19,6 +20,7 @@ export function AdminSkillItem({ s, onChanged }: { s: AdminSkill; onChanged: () 
   const [busy, setBusy] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [preview, setPreview] = useState(false);
+  const [dryrunOpen, setDryrunOpen] = useState(false);
 
   async function save() {
     setBusy(true);
@@ -68,6 +70,12 @@ export function AdminSkillItem({ s, onChanged }: { s: AdminSkill; onChanged: () 
             className="rounded-full border border-white/60 bg-white/60 px-3 py-1.5 text-sm font-medium text-slate-600 transition hover:bg-white/90 active:scale-95"
           >
             {s.isActive ? "비활성화" : "활성화"}
+          </button>
+          <button
+            onClick={() => setDryrunOpen((v) => !v)}
+            className="rounded-full border border-white/60 bg-white/60 px-3 py-1.5 text-sm font-medium text-slate-600 transition hover:bg-white/90 active:scale-95"
+          >
+            드라이런
           </button>
           <button
             onClick={() => setHistoryOpen(true)}
@@ -120,6 +128,8 @@ export function AdminSkillItem({ s, onChanged }: { s: AdminSkill; onChanged: () 
           </button>
         </div>
       )}
+
+      {dryrunOpen && <AdminSkillDryrun skillId={s.id} />}
 
       <RevisionHistory
         open={historyOpen}
