@@ -1,9 +1,11 @@
 "use client";
 import { useState } from "react";
+import { MarkdownPreview } from "@/components/MarkdownPreview";
 
 export function AdminSkillForm({ onCreated }: { onCreated: () => void }) {
   const [form, setForm] = useState({ name: "", description: "", body: "" });
   const [error, setError] = useState("");
+  const [preview, setPreview] = useState(false);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -43,14 +45,24 @@ export function AdminSkillForm({ onCreated }: { onCreated: () => void }) {
         onChange={set("description")}
         className={field}
       />
-      <textarea
-        required
-        placeholder="상담 절차 본문 (마크다운). 에이전트가 이 절차를 그대로 따릅니다."
-        value={form.body}
-        onChange={set("body")}
-        rows={6}
-        className={field}
-      />
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-medium text-slate-500">상담 절차 본문 (마크다운)</span>
+        <button type="button" onClick={() => setPreview((v) => !v)} className="rounded-full border border-white/60 bg-white/60 px-2.5 py-0.5 text-[11px] font-medium text-slate-500 transition hover:bg-white/90">
+          {preview ? "편집" : "미리보기"}
+        </button>
+      </div>
+      {preview ? (
+        <MarkdownPreview text={form.body} />
+      ) : (
+        <textarea
+          required
+          placeholder="상담 절차 본문 (마크다운). 에이전트가 이 절차를 그대로 따릅니다."
+          value={form.body}
+          onChange={set("body")}
+          rows={6}
+          className={field}
+        />
+      )}
       {error && <p className="text-sm text-rose-600">{error}</p>}
       <button
         type="submit"

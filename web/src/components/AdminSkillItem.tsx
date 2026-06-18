@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import { RevisionHistory } from "@/components/RevisionHistory";
+import { MarkdownPreview } from "@/components/MarkdownPreview";
 
 export type AdminSkill = {
   id: number;
@@ -17,6 +18,7 @@ export function AdminSkillItem({ s, onChanged }: { s: AdminSkill; onChanged: () 
   const [active, setActive] = useState(s.isActive);
   const [busy, setBusy] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [preview, setPreview] = useState(false);
 
   async function save() {
     setBusy(true);
@@ -94,10 +96,21 @@ export function AdminSkillItem({ s, onChanged }: { s: AdminSkill; onChanged: () 
             설명
             <input value={description} onChange={(e) => setDescription(e.target.value)} className={field} />
           </label>
-          <label className="text-xs text-slate-500">
-            상담 절차 본문
-            <textarea value={body} onChange={(e) => setBody(e.target.value)} rows={6} className={field} />
-          </label>
+          <div className="text-xs text-slate-500">
+            <div className="flex items-center justify-between">
+              <span>상담 절차 본문</span>
+              <button type="button" onClick={() => setPreview((v) => !v)} className="rounded-full border border-white/60 bg-white/60 px-2.5 py-0.5 text-[11px] font-medium text-slate-500 transition hover:bg-white/90">
+                {preview ? "편집" : "미리보기"}
+              </button>
+            </div>
+            {preview ? (
+              <div className="mt-1">
+                <MarkdownPreview text={body} />
+              </div>
+            ) : (
+              <textarea value={body} onChange={(e) => setBody(e.target.value)} rows={6} className={field} />
+            )}
+          </div>
           <button
             onClick={save}
             disabled={busy}
