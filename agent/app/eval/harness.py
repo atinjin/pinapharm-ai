@@ -85,10 +85,11 @@ def evaluate(obs: Observation, expect: dict) -> Verdict:
     if "recommends" in expect:
         has = len(obs.recommended_ids) > 0
         checks.append(Check("추천", has == expect["recommends"], f"기대={expect['recommends']} ids={obs.recommended_ids}"))
+    snippet = obs.response[:80]
     for s in expect.get("response_contains", []):
-        checks.append(Check(f"응답 포함:{s}", s in obs.response))
+        checks.append(Check(f"응답 포함:{s}", s in obs.response, f"응답={snippet}"))
     for s in expect.get("response_excludes", []):
-        checks.append(Check(f"응답 제외:{s}", s not in obs.response))
+        checks.append(Check(f"응답 제외:{s}", s not in obs.response, f"응답={snippet}"))
     return Verdict(all(c.ok for c in checks), checks)
 
 
