@@ -3,7 +3,7 @@
 > 약사 상담 + 영양제 추천 프로토타입. 일반인이 웹 채팅으로 약사 지식 기반 상담을 받고,
 > 약사가 어드민에서 등록한 영양제를 상담 결과에 맞춰 추천·구매하는 시스템.
 
-- **작성일:** 2026-06-16 (갱신: 2026-06-17 — RAG 구현 반영)
+- **작성일:** 2026-06-16 (갱신: 2026-06-19 — RAG 2단계 진화 + 어드민 고도화 반영)
 - **실행/테스트 방법:** [README.md](../README.md)
 - **설계 스펙:** [docs/superpowers/specs/](superpowers/)
 
@@ -52,16 +52,24 @@ agent/  FastAPI + LangGraph (Claude) 약사 에이전트 (tool-use 루프, Pytho
 - **에이전트 설정 편집**: 페르소나·시스템 프롬프트·응급 메시지·분류 프롬프트(`AgentSetting`, 저장 즉시 반영)
 - **상담 스킬 등록**: `ConsultationSkill` — Claude Code 스킬 모델(name + description + 본문, 점진적 공개)을 `load_consultation_skill` 도구로 온디맨드 로드
 
-### 5. RAG 검색·그라운딩 (Voyage 임베딩)
+### 5. RAG — 제품 검색 + 지식 그라운딩 (Voyage 임베딩, 두 서비스로 분리)
 
-- **Phase 1 — 제품 의미검색**: `searchProducts`를 하이브리드(의미∪lexical)로 — 동의어 사전에 없는 표현도 매칭. 추천 카드·적재 흐름은 유지.
-- **Phase 2 — 원료 지식 그라운딩**: `retrieve_knowledge` 도구 + `/api/agent-tools/retrieve-knowledge`로 식약처 원료 인정정보(기능성·주의사항·상호작용)를 검색해 답변 근거로 주입.
-- `KnowledgeChunk`(SQLite BLOB 벡터) + Node 코사인 top-k, 임베딩 실패 시 lexical 폴백. 색인 스크립트 `index:products`/`index:knowledge`.
-- 설계·계획: [spec](superpowers/specs/2026-06-16-rag-consultation-design.md) · [plan](superpowers/plans/2026-06-16-rag-consultation.md)
+- **제품 검색**: `searchProducts` 하이브리드(의미∪lexical) + **구조화 필터**(제형·용량·성분·제외 알레르겐, 데이터 있을 때만 불일치 제외·알레르겐은 하드 제외). 에이전트 `search_products` 도구가 대화 맥락·건강 프로필로 구조화 질의를 채움. `Product`에 `form`·`doseAmount`·`doseUnit`·`ingredientsStructured` 추가. 추천 카드·적재 흐름 유지.
+- **지식 그라운딩(문서 청킹)**: `KnowledgeDocument` → 문단 우선 청킹 → `KnowledgeChunk`(documentId·임베딩). `retrieve_knowledge`가 청크 top-k를 **출처와 함께** 그라운딩. 긴 문서(논문·기사·약사 노하우) 수용.
+- 공통: SQLite BLOB 벡터 + Node 코사인 top-k, 임베딩 실패 시 lexical/빈 결과 폴백. 색인 스크립트 `index:products`/`index:knowledge`.
+- 설계·계획: [RAG spec](superpowers/specs/2026-06-16-rag-consultation-design.md) · [RAG plan](superpowers/plans/2026-06-16-rag-consultation.md) · [지식 대시보드 spec](superpowers/specs/2026-06-17-rag-knowledge-dashboard-design.md)
+
+### 6. 어드민 고도화
+
+- **버전 관리 + 롤백 + diff**: 제네릭 `Revision` — 에이전트 설정·상담 스킬·지식 문서 저장 시 스냅샷, 이력 조회, **현재↔선택 버전 diff(jsdiff)** 검토 후 롤백(지식 문서는 재청킹·재임베딩). `/api/admin/revisions/*` + `RevisionHistory` UI.
+- **지식 베이스 큐레이션 대시보드**: 문서 CRUD·검수 상태·재임베딩·**검색 테스트**(질의→실제 검색되는 청크 미리보기).
+- **마크다운 프리뷰**: 스킬·지식 문서 본문 렌더 토글.
+- **스킬 테스트**: 매칭 미리보기(결정적 어휘)·**LLM 드라이런**(에이전트 `/skill-dryrun` 1회 호출).
+- 설계: [어드민 고도화 spec](superpowers/specs/2026-06-19-admin-versioning-preview-design.md)
 
 ### 데이터 모델 (Prisma)
 `Pharmacist` · `Product` · `Consultation` · `Message` · `Recommendation` · `Order` ·
-`Customer` · `Identity` · `HealthProfile` · `AgentSetting` · `ConsultationSkill` · `KnowledgeChunk`
+`Customer` · `Identity` · `HealthProfile` · `AgentSetting` · `ConsultationSkill` · `KnowledgeDocument` · `KnowledgeChunk` · `Revision`
 
 ---
 
@@ -74,10 +82,10 @@ agent/  FastAPI + LangGraph (Claude) 약사 에이전트 (tool-use 루프, Pytho
 - [ ] GitHub Dependabot 취약점(moderate 1건) 해결
 - [ ] 비밀키·환경변수 관리 점검(`.env` 노출 경로, 운영 분리)
 
-### B. 어드민 고도화
-- [ ] 프롬프트·스킬 **버전 관리 + 롤백**
-- [ ] 변경 이력 / 감사 로그(누가 언제 무엇을 바꿨는지)
-- [ ] 스킬 본문 **마크다운 프리뷰**, 스킬 동작 테스트(드라이런)
+### B. 어드민 고도화 ✅ (위 "6. 어드민 고도화" 참고)
+- [x] 프롬프트·스킬·지식 문서 **버전 관리 + 롤백 + diff**
+- [x] 변경 이력(버전 스냅샷이 이력 역할) — "누가"(사용자 식별)는 인증 도입 후
+- [x] 스킬·문서 **마크다운 프리뷰** + 스킬 **매칭 미리보기 / LLM 드라이런**
 
 ### C. 테스트 보강
 - [ ] `agent-settings` / `skills` / `agent-config` 라우트 테스트 (현재 어드민 신규 API 테스트 부재)
@@ -85,8 +93,8 @@ agent/  FastAPI + LangGraph (Claude) 약사 에이전트 (tool-use 루프, Pytho
 - [ ] `load_consultation_skill` 도구의 에이전트 통합 테스트
 
 ### D. 상담 품질
-- [x] **RAG** — 제품 의미검색 + 식약처 원료 지식 그라운딩 ✅ (위 "5. RAG 검색·그라운딩" 참고)
-- [ ] (RAG 운영) Voyage 결제수단 등록 후 제품 전량 색인 + 원료 코퍼스 20~30종 약사 검수 확장
+- [x] **RAG** — 제품 하이브리드·구조화 검색 + 지식 문서 청킹 그라운딩 ✅ (위 "5. RAG" 참고)
+- [ ] (RAG 운영) Voyage 결제수단 등록 후 제품 전량 색인 + 원료/지식 코퍼스 약사 검수 확장
 - [ ] 멀티에이전트 / 다단계 추론
 - [ ] **eval 하네스** — 상담 품질·안전 가드레일 회귀 평가
 
@@ -101,5 +109,5 @@ agent/  FastAPI + LangGraph (Claude) 약사 에이전트 (tool-use 루프, Pytho
 
 ## 알려진 차이 / 메모
 
-- README의 "대화는 stateless" 기술은 현재 코드와 다름 — **세션 메모리·건강 프로필 개인화가 이미 구현됨**(추후 README 갱신 필요).
 - 에이전트 설정·상담 스킬의 폴백 기본값은 `agent/app/prompts.py`(+`triage.py`)와 `web/src/lib/agentConfig.ts`의 `DEFAULTS`에 **이중으로** 존재 — 한쪽만 바꾸면 어긋날 수 있으니 동시 수정.
+- 운영 전제: 버전(`Revision`) 보존 정책 없음(소규모 가정), `AGENT_URL`은 운영자 신뢰(검증 없음), 스킬 매칭 미리보기는 어휘 기반(의미 X). 어드민 인증은 미구현(A 항목).
