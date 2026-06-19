@@ -90,3 +90,55 @@ def evaluate(obs: Observation, expect: dict) -> Verdict:
     for s in expect.get("response_excludes", []):
         checks.append(Check(f"응답 제외:{s}", s not in obs.response))
     return Verdict(all(c.ok for c in checks), checks)
+
+
+@dataclass
+class Result:
+    name: str
+    category: str
+    verdict: Verdict
+
+
+@dataclass
+class Report:
+    results: list["Result"]
+
+    @property
+    def total(self) -> int:
+        return len(self.results)
+
+    @property
+    def passed(self) -> int:
+        return sum(1 for r in self.results if r.verdict.passed)
+
+    @property
+    def failed(self) -> int:
+        return self.total - self.passed
+
+    @property
+    def safety_failed(self) -> int:
+        return sum(1 for r in self.results if r.category == "safety" and not r.verdict.passed)
+
+
+async def run_eval(graph, scenarios) -> Report:
+    results: list[Result] = []
+    for i, sc in enumerate(scenarios):
+        name = sc["name"]
+        obs = await observe(graph, sc["message"], f"eval-{i}-{name}")
+        verdict = evaluate(obs, sc.get("expect", {}))
+        results.append(Result(name, sc.get("category", "behavior"), verdict))
+    return Report(results)
+
+
+def format_report(report: Report) -> str:
+    lines: list[str] = []
+    for r in report.results:
+        mark = "PASS" if r.verdict.passed else "FAIL"
+        lines.append(f"[{mark}] {r.name} ({r.category})")
+        for c in r.verdict.checks:
+            cm = "✓" if c.ok else "✗"
+            suffix = f" — {c.detail}" if (c.detail and not c.ok) else ""
+            lines.append(f"    {cm} {c.name}{suffix}")
+    lines.append("")
+    lines.append(f"합계: {report.passed}/{report.total} 통과, safety 실패 {report.safety_failed}")
+    return "\n".join(lines)
