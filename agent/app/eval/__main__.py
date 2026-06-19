@@ -7,6 +7,10 @@ import asyncio
 import os
 import sys
 
+from dotenv import load_dotenv
+
+load_dotenv()  # agent/.env의 ANTHROPIC_API_KEY 등을 로드 (main.py와 동일)
+
 from langgraph.checkpoint.memory import MemorySaver
 
 from app.graph import build_graph
