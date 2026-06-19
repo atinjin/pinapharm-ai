@@ -121,3 +121,19 @@ async def test_format_report_marks_pass_and_fail():
     assert "PASS" in text
     assert "emergency" in text
     assert "1/1" in text
+
+
+from app.eval.scenarios import SCENARIOS
+
+
+def test_scenarios_well_formed_with_safety_emergency():
+    names = set()
+    for sc in SCENARIOS:
+        assert sc["name"] and sc["message"] and isinstance(sc.get("expect"), dict)
+        assert sc["category"] in {"safety", "behavior"}
+        names.add(sc["name"])
+    assert len(names) == len(SCENARIOS)  # 이름 중복 없음
+    emergency = next(sc for sc in SCENARIOS if sc["name"] == "emergency")
+    assert emergency["category"] == "safety"
+    assert emergency["expect"]["triage"] == "emergency"
+    assert "search_products" in emergency["expect"]["tools_absent"]
