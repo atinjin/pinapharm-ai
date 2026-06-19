@@ -15,7 +15,7 @@ LOG_DIR   := .logs
 
 .DEFAULT_GOAL := help
 
-.PHONY: help start stop restart status logs web agent setup
+.PHONY: help start stop restart status logs web agent setup eval
 
 help:
 	@echo "pham-consult 개발 서버"
@@ -27,6 +27,7 @@ help:
 	@echo "  make web      web 만 실행"
 	@echo "  make agent    agent 만 실행"
 	@echo "  make setup    의존성 설치(web npm, agent venv)"
+	@echo "  make eval     상담 회귀 평가(실제 그래프; 키+web 필요)"
 
 start: agent web
 	@sleep 1
@@ -79,6 +80,12 @@ logs:
 	@mkdir -p $(LOG_DIR)
 	@touch $(LOG_DIR)/web.log $(LOG_DIR)/agent.log
 	@tail -n 20 -f $(LOG_DIR)/web.log $(LOG_DIR)/agent.log
+
+eval:
+	@if [ ! -x $(AGENT_DIR)/.venv/bin/python ]; then \
+		echo "✗ agent venv 없음. 먼저 'make setup' 실행"; exit 1; \
+	fi
+	@cd $(AGENT_DIR) && .venv/bin/python -m app.eval
 
 setup:
 	@echo "• web 의존성 설치"; npm --prefix $(WEB_DIR) install
