@@ -26,6 +26,50 @@ class Verdict:
     checks: list["Check"]
 
 
+def _text(content) -> str:
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        parts = []
+        for block in content:
+            if isinstance(block, dict) and block.get("type") == "text":
+                parts.append(block.get("text", ""))
+            elif isinstance(block, str):
+                parts.append(block)
+        return "".join(parts)
+    return str(content)
+
+
+def _observe_state(state) -> Observation:
+    messages = state.get("messages", [])
+    tools_called: list[str] = []
+    response = ""
+    for m in messages:
+        for tc in getattr(m, "tool_calls", None) or []:
+            tools_called.append(tc["name"])
+        if getattr(m, "type", None) == "ai":
+            text = _text(getattr(m, "content", ""))
+            if text:
+                response = text
+    return Observation(
+        triage=state.get("triage", ""),
+        tools_called=tools_called,
+        recommended_ids=list(state.get("recommended_ids", [])),
+        response=response,
+    )
+
+
+async def observe(graph, message: str, session_id: str) -> Observation:
+    try:
+        state = await graph.ainvoke(
+            {"messages": [HumanMessage(content=message)], "recommended_ids": [], "tool_turns": 0, "triage": ""},
+            config={"configurable": {"thread_id": session_id}},
+        )
+    except Exception as e:  # noqa: BLE001 — 한 시나리오 실패가 전체를 막지 않도록
+        return Observation(error=type(e).__name__)
+    return _observe_state(state)
+
+
 def evaluate(obs: Observation, expect: dict) -> Verdict:
     checks: list[Check] = []
     if obs.error:
