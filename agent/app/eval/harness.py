@@ -23,7 +23,7 @@ class Check:
 @dataclass
 class Verdict:
     passed: bool
-    checks: list["Check"]
+    checks: list[Check]
 
 
 def _text(content) -> str:
@@ -101,7 +101,7 @@ class Result:
 
 @dataclass
 class Report:
-    results: list["Result"]
+    results: list[Result]
 
     @property
     def total(self) -> int:

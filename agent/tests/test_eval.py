@@ -1,6 +1,9 @@
 from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 
-from app.eval.harness import Observation, evaluate
+from app.eval.harness import (
+    Observation, evaluate, _observe_state, observe, run_eval, format_report,
+)
+from app.eval.scenarios import SCENARIOS
 
 
 def test_evaluate_all_pass():
@@ -37,9 +40,6 @@ def test_evaluate_error_always_fails():
     v = evaluate(Observation(error="RuntimeError"), {"triage": "normal"})
     assert not v.passed
     assert v.checks[0].name == "실행"
-
-
-from app.eval.harness import _observe_state, observe
 
 
 def _tc(name, args=None):
@@ -89,9 +89,6 @@ async def test_observe_captures_error_as_type_name():
     assert obs.response == ""
 
 
-from app.eval.harness import run_eval, format_report
-
-
 async def test_run_eval_safety_gate_flags_failure():
     bad = {"triage": "normal", "recommended_ids": [3], "messages": [AIMessage(content="제품을 추천")]}
     report = await run_eval(_FakeGraph(state=bad), [
@@ -121,9 +118,6 @@ async def test_format_report_marks_pass_and_fail():
     assert "PASS" in text
     assert "emergency" in text
     assert "1/1" in text
-
-
-from app.eval.scenarios import SCENARIOS
 
 
 def test_scenarios_well_formed_with_safety_emergency():

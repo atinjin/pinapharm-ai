@@ -96,7 +96,7 @@ agent/  FastAPI + LangGraph (Claude) 약사 에이전트 (tool-use 루프, Pytho
 - [x] **RAG** — 제품 하이브리드·구조화 검색 + 지식 문서 청킹 그라운딩 ✅ (위 "5. RAG" 참고)
 - [ ] (RAG 운영) Voyage 결제수단 등록 후 제품 전량 색인 + 원료/지식 코퍼스 약사 검수 확장
 - [ ] 멀티에이전트 / 다단계 추론
-- [ ] **eval 하네스** — 상담 품질·안전 가드레일 회귀 평가
+- [x] **eval 하네스** — 상담 안전·행동 회귀 평가(결정적 어서션). `make eval` / `python -m app.eval`, safety 시나리오 실패 시 비정상 종료. 설계: [eval spec](superpowers/specs/2026-06-19-eval-harness-design.md) · [plan](superpowers/plans/2026-06-19-eval-harness.md)
 
 ### E. 커머스
 - [ ] 실제 결제·주문 플로우(현재 기록만) + 재고 차감 연동

@@ -138,6 +138,8 @@ cd web && npm test                            # 도메인/CRUD/RAG 테스트 (vi
 cd agent && . .venv/bin/activate && pytest     # 도구/그래프/에이전트 루프 (28)
 ```
 
+> 상담 안전·행동 회귀 평가: `make eval`(실제 그래프 — `ANTHROPIC_API_KEY` + web(:3000) 필요). 응급 분기·도구 호출·추천 유무를 결정적으로 검증하고, 안전 시나리오 실패 시 비정상 종료합니다.
+
 ## 🗺️ 로드맵
 
 구현 현황과 향후 계획은 [docs/ROADMAP.md](docs/ROADMAP.md)를 참고하세요. RAG 설계·구현 기록: [spec](docs/superpowers/specs/2026-06-16-rag-consultation-design.md) · [plan](docs/superpowers/plans/2026-06-16-rag-consultation.md).
