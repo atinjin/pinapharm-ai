@@ -17,6 +17,27 @@ def test_chat_streams_sse():
             assert "event: done" in r.text
 
 
+def test_skill_dryrun_returns_response():
+    fake_model = AsyncMock()
+    fake_model.ainvoke = AsyncMock(return_value=AIMessage(content="콧물엔 수분 섭취를 권합니다."))
+    with patch("app.main._chat_model", return_value=fake_model), \
+         patch("app.main.get_config", new=AsyncMock(return_value={"persona": "맑은 약사"})):
+        with TestClient(main_module.app) as client:
+            r = client.post("/skill-dryrun", json={"query": "콧물이 나요", "skill_body": "1) 수분 섭취 권고"})
+            assert r.status_code == 200
+            assert r.json()["response"] == "콧물엔 수분 섭취를 권합니다."
+
+
+def test_skill_dryrun_handles_failure():
+    fake_model = AsyncMock()
+    fake_model.ainvoke = AsyncMock(side_effect=RuntimeError("no key"))
+    with patch("app.main._chat_model", return_value=fake_model), \
+         patch("app.main.get_config", new=AsyncMock(return_value={"persona": ""})):
+        with TestClient(main_module.app) as client:
+            r = client.post("/skill-dryrun", json={"query": "q", "skill_body": "b"})
+            assert r.status_code == 502
+
+
 def test_health():
     with TestClient(main_module.app) as client:
         assert client.get("/health").json() == {"ok": True}

@@ -101,6 +101,18 @@ model AgentSetting {
   updatedAt DateTime @updatedAt
 }
 
+// 편집 버전 스냅샷. 보존 캡/정리 정책은 현재 없음(소규모 가정) — 대규모 시 주기적 prune 필요.
+model Revision {
+  id         Int      @id @default(autoincrement())
+  entityType String // "agentSetting" | "skill" | "knowledgeDocument"
+  entityId   String // agentSetting: key / skill: id / doc: id
+  snapshot   String // 저장 시점 엔터티 내용 JSON
+  summary    String?
+  createdAt  DateTime @default(now())
+
+  @@index([entityType, entityId])
+}
+
 model ConsultationSkill {
   id          Int      @id @default(autoincrement())
   name        String   @unique // kebab-case slug

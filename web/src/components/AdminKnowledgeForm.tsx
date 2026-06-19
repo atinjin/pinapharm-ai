@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import { Modal } from "@/components/Modal";
+import { MarkdownPreview } from "@/components/MarkdownPreview";
 
 export type DocInitial = {
   id: number;
@@ -30,6 +31,7 @@ export function AdminKnowledgeForm({
   );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [preview, setPreview] = useState(false);
 
   // 수정 모달이 다른 문서로 다시 열릴 때 초기값 동기화
   const [seededId, setSeededId] = useState(initial?.id ?? 0);
@@ -40,6 +42,14 @@ export function AdminKnowledgeForm({
     setBody(initial?.body ?? "");
     setSource(initial?.source?.["출처"] ? String(initial.source["출처"]) : "");
     setError("");
+    setPreview(false);
+  }
+
+  // 같은 문서로 다시 열 때도 편집 모드로 시작
+  const [prevOpen, setPrevOpen] = useState(false);
+  if (open !== prevOpen) {
+    setPrevOpen(open);
+    if (open) setPreview(false);
   }
 
   async function submit(e: React.FormEvent) {
@@ -73,7 +83,17 @@ export function AdminKnowledgeForm({
           <input placeholder="출처 (URL·저자·메모)" value={source} onChange={(e) => setSource(e.target.value)} className={field} />
         </div>
         <input required placeholder="제목" value={title} onChange={(e) => setTitle(e.target.value)} className={field} />
-        <textarea required placeholder="본문 — 저장 시 문단 기준으로 청크 분할·임베딩됩니다." value={body} onChange={(e) => setBody(e.target.value)} rows={10} className={field} />
+        <div className="flex items-center justify-between">
+          <span className="text-xs font-medium text-slate-500">본문</span>
+          <button type="button" onClick={() => setPreview((v) => !v)} className="rounded-full border border-white/60 bg-white/60 px-2.5 py-0.5 text-[11px] font-medium text-slate-500 transition hover:bg-white/90">
+            {preview ? "편집" : "미리보기"}
+          </button>
+        </div>
+        {preview ? (
+          <MarkdownPreview text={body} />
+        ) : (
+          <textarea required placeholder="본문 — 저장 시 문단 기준으로 청크 분할·임베딩됩니다." value={body} onChange={(e) => setBody(e.target.value)} rows={10} className={field} />
+        )}
         {editing && <p className="text-xs text-amber-600">본문을 바꾸면 청크가 재생성되고 검수 상태가 &lsquo;검수 필요&rsquo;로 초기화됩니다.</p>}
         {error && <p className="text-sm text-rose-600">{error}</p>}
         <div className="flex justify-end gap-2">

@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { AdminSkillForm } from "@/components/AdminSkillForm";
 import { AdminSkillItem, type AdminSkill } from "@/components/AdminSkillItem";
+import { AdminSkillMatchTest } from "@/components/AdminSkillMatchTest";
 
 export default function AdminSkillsPage() {
   const [skills, setSkills] = useState<AdminSkill[]>([]);
@@ -20,6 +21,11 @@ export default function AdminSkillsPage() {
         <h2 className="mb-1 text-sm font-semibold text-slate-600">새 상담 스킬 등록</h2>
         <p className="mb-4 text-xs text-slate-400">특정 상담 상황의 절차를 등록하면, 에이전트가 해당 상황에서 절차를 불러와 따릅니다.</p>
         <AdminSkillForm onCreated={loadSkills} />
+      </section>
+
+      <section className="glass mb-5 rounded-3xl p-5 sm:p-6">
+        <h2 className="mb-3 text-sm font-semibold text-slate-600">스킬 매칭 테스트</h2>
+        <AdminSkillMatchTest skills={skills} />
       </section>
 
       <div className="mb-3 flex items-center justify-between px-1">

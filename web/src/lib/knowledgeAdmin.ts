@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { embed, EMBEDDING_MODEL_NAME } from "@/lib/embeddings";
 import { normalize, serialize, cosineTopK } from "@/lib/vectors";
 import { chunk } from "@/lib/chunking";
+import { recordRevision } from "@/lib/revisions";
 
 const EMPTY_EMBEDDING = Buffer.alloc(0) as unknown as Uint8Array<ArrayBuffer>;
 
@@ -119,6 +120,17 @@ export async function updateDocument(
   if (bodyChanged) await rebuildChunks(id, title, input.body as string);
   else if (input.title && input.title !== doc.title)
     await prisma.knowledgeChunk.updateMany({ where: { documentId: id }, data: { title } });
+  await recordRevision(
+    "knowledgeDocument",
+    String(id),
+    {
+      category: input.category ?? doc.category,
+      title,
+      body: input.body ?? doc.body,
+      source: input.source !== undefined ? input.source : JSON.parse(doc.source || "{}"),
+    },
+    "수정"
+  );
   return getDocument(id);
 }
 

@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { recordRevision } from "@/lib/revisions";
 
 export type AgentSettingKey =
   | "persona"
@@ -65,5 +66,8 @@ export async function setAgentSettings(
       })
     )
   );
+  for (const [key, value] of entries) {
+    await recordRevision("agentSetting", key, { value: value ?? "" }, "수정");
+  }
   return getAgentSettings();
 }

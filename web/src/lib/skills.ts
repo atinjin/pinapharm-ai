@@ -1,4 +1,9 @@
 import { prisma } from "@/lib/prisma";
+import { recordRevision } from "@/lib/revisions";
+
+function snapshotSkill(s: { name: string; description: string; body: string; isActive: boolean }) {
+  return { name: s.name, description: s.description, body: s.body, isActive: s.isActive };
+}
 
 export async function listSkills() {
   return prisma.consultationSkill.findMany({ orderBy: { createdAt: "desc" } });
@@ -21,7 +26,9 @@ export async function createSkill(input: {
   body: string;
   isActive?: boolean;
 }) {
-  return prisma.consultationSkill.create({ data: input });
+  const skill = await prisma.consultationSkill.create({ data: input });
+  await recordRevision("skill", String(skill.id), snapshotSkill(skill), "생성");
+  return skill;
 }
 
 export async function updateSkill(
@@ -33,7 +40,9 @@ export async function updateSkill(
     isActive?: boolean;
   }
 ) {
-  return prisma.consultationSkill.update({ where: { id }, data: input });
+  const skill = await prisma.consultationSkill.update({ where: { id }, data: input });
+  await recordRevision("skill", String(skill.id), snapshotSkill(skill), "수정");
+  return skill;
 }
 
 export async function deleteSkill(id: number) {
