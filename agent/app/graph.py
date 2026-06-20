@@ -70,6 +70,10 @@ def _plan_checklist(state: AgentState) -> str:
     for s in steps:
         hint = f" (도구: {s['tool']})" if s.get("tool") else ""
         lines.append(f"- {s['title']}{hint}")
+    lines.append(
+        "프로필 조회 결과가 비어 있더라도 거기서 멈추거나 되묻기만 하지 말고, "
+        "추천이 필요한 상담이면 같은 턴에 search_products로 제품을 찾아 추천까지 마치세요."
+    )
     return "\n".join(lines)
 
 
