@@ -4,7 +4,7 @@ import time
 
 import httpx
 
-from app.prompts import PERSONA, SYSTEM_PROMPT, EMERGENCY_MESSAGE, TRIAGE_SYSTEM
+from app.prompts import PERSONA, SYSTEM_PROMPT, EMERGENCY_MESSAGE, TRIAGE_SYSTEM, PLAN_SYSTEM
 
 logger = logging.getLogger("agent.config")
 
@@ -17,6 +17,7 @@ DEFAULT_CONFIG = {
     "systemPrompt": SYSTEM_PROMPT,
     "emergencyMessage": EMERGENCY_MESSAGE,
     "triagePrompt": TRIAGE_SYSTEM,
+    "planPrompt": PLAN_SYSTEM,
     "skills": [],
 }
 
