@@ -83,11 +83,13 @@ export async function confirmPayment(orderNumber: string, paymentKey: string, am
   if (order.status !== "pending") throw new CommerceError("INVALID_TRANSITION", `결제할 수 없는 상태입니다: ${order.status}`);
   if (amount !== order.total) throw new CommerceError("AMOUNT_MISMATCH", "결제 금액이 주문 금액과 일치하지 않습니다.", { expected: order.total, got: amount });
   const payment = await tossConfirm({ paymentKey, orderId: orderNumber, amount });
-  return prisma.order.update({
-    where: { id: order.id },
+  const res = await prisma.order.updateMany({
+    where: { id: order.id, status: "pending" },
     data: { status: "paid", paymentKey: payment.paymentKey, paymentMethod: payment.method ?? null, paidAt: new Date(), pgProvider: "toss" },
-    include: { items: true },
   });
+  // 동시 confirm으로 이미 처리됐으면 count 0 — 현재 상태 반환(멱등)
+  const updated = await prisma.order.findUnique({ where: { id: order.id }, include: { items: true } });
+  return updated!;
 }
 
 export async function cancelOrder(id: number, customerId: number) {
@@ -110,10 +112,11 @@ export async function cancelOrder(id: number, customerId: number) {
 }
 
 // 웹훅 재조정(멱등): Toss가 source of truth
-export async function reconcileFromToss(orderNumber: string, payment: { status: string; paymentKey: string; method?: string }) {
+export async function reconcileFromToss(orderNumber: string, payment: { status: string; paymentKey: string; method?: string; totalAmount?: number }) {
   const order = await prisma.order.findUnique({ where: { orderNumber }, include: { items: true } });
   if (!order) return;
   if (payment.status === "DONE" && order.status === "pending") {
+    if (typeof payment.totalAmount === "number" && payment.totalAmount !== order.total) return;
     await prisma.order.update({ where: { id: order.id }, data: { status: "paid", paymentKey: payment.paymentKey, paymentMethod: payment.method ?? null, paidAt: new Date(), pgProvider: "toss" } });
   } else if (payment.status === "CANCELED" && order.status === "paid") {
     await prisma.$transaction(async (tx) => {

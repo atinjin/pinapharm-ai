@@ -4,7 +4,7 @@ import crypto from "node:crypto";
 
 vi.mock("@/lib/payments", async (orig) => {
   const actual = await orig<typeof import("@/lib/payments")>();
-  return { ...actual, tossGetPayment: vi.fn(async (pk: string) => ({ paymentKey: pk, orderId: "x", status: "DONE", totalAmount: 0, method: "카드" })) };
+  return { ...actual, tossGetPayment: vi.fn(async (pk: string) => ({ paymentKey: pk, orderId: "x", status: "DONE", totalAmount: 21000, method: "카드" })) };
 });
 
 import { prisma } from "@/lib/prisma";
