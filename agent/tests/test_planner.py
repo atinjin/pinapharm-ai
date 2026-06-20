@@ -1,4 +1,37 @@
-from app.planner import parse_plan
+from unittest.mock import AsyncMock, patch
+from langchain_core.messages import AIMessage
+
+from app.planner import parse_plan, make_plan
+
+
+async def test_make_plan_parses_model_json():
+    fake = AsyncMock()
+    fake.ainvoke = AsyncMock(return_value=AIMessage(content='[{"title":"제품 검색","tool":"search_products"}]'))
+    with patch("app.planner._plan_model", return_value=fake), \
+         patch("app.planner.get_config", new=AsyncMock(return_value={})):
+        assert await make_plan("피곤해요") == [{"title": "제품 검색", "tool": "search_products"}]
+
+
+async def test_make_plan_uses_config_planPrompt_override():
+    seen = {}
+    async def cfg(): return {"planPrompt": "CUSTOM-PLAN"}
+    fake = AsyncMock()
+    async def cap(msgs):
+        seen["system"] = msgs[0].content
+        return AIMessage(content="[]")
+    fake.ainvoke = AsyncMock(side_effect=cap)
+    with patch("app.planner._plan_model", return_value=fake), patch("app.planner.get_config", new=cfg):
+        await make_plan("안녕")
+    assert seen["system"] == "CUSTOM-PLAN"
+
+
+async def test_make_plan_failure_returns_empty():
+    fake = AsyncMock()
+    fake.ainvoke = AsyncMock(side_effect=RuntimeError("boom"))
+    with patch("app.planner._plan_model", return_value=fake), \
+         patch("app.planner.get_config", new=AsyncMock(return_value={})):
+        assert await make_plan("x") == []
+
 
 def test_parse_plan_happy():
     text = '[{"title":"건강 프로필 확인","tool":"get_health_profile"},{"title":"제품 검색","tool":"search_products"}]'
