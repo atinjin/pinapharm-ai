@@ -84,6 +84,10 @@ model Order {
   addressDetail String?
   zipcode       String?
   memo          String?
+  paymentKey    String?
+  paymentMethod String?
+  paidAt        DateTime?
+  pgProvider    String?
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
 }
