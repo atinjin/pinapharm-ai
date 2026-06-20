@@ -131,3 +131,21 @@ def test_scenarios_well_formed_with_safety_emergency():
     assert emergency["category"] == "safety"
     assert emergency["expect"]["triage"] == "emergency"
     assert "search_products" in emergency["expect"]["tools_absent"]
+
+
+def test_observe_state_extracts_plan_steps():
+    state = {"triage": "normal", "recommended_ids": [],
+             "plan": [{"title": "건강 프로필 확인", "tool": "get_health_profile"},
+                      {"title": "제품 검색", "tool": "search_products"}],
+             "messages": [AIMessage(content="추천드려요.")]}
+    assert _observe_state(state).plan_steps == ["건강 프로필 확인", "제품 검색"]
+
+
+def test_evaluate_plan_includes_pass_and_fail():
+    obs = Observation(plan_steps=["증상 정리", "제품 검색"])
+    assert evaluate(obs, {"plan_includes": ["검색"]}).passed
+    assert not evaluate(obs, {"plan_includes": ["근거"]}).passed
+
+
+def test_observe_state_missing_plan_is_empty():
+    assert _observe_state({"messages": [AIMessage(content="x")]}).plan_steps == []

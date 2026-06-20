@@ -11,6 +11,7 @@ class Observation:
     recommended_ids: list[int] = field(default_factory=list)
     response: str = ""
     error: str | None = None
+    plan_steps: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -51,11 +52,13 @@ def _observe_state(state) -> Observation:
             text = _text(getattr(m, "content", ""))
             if text:
                 response = text
+    plan_steps = [s["title"] for s in state.get("plan", []) if isinstance(s, dict) and "title" in s]
     return Observation(
         triage=state.get("triage", ""),
         tools_called=tools_called,
         recommended_ids=list(state.get("recommended_ids", [])),
         response=response,
+        plan_steps=plan_steps,
     )
 
 
@@ -90,6 +93,8 @@ def evaluate(obs: Observation, expect: dict) -> Verdict:
         checks.append(Check(f"응답 포함:{s}", s in obs.response, f"응답={snippet}"))
     for s in expect.get("response_excludes", []):
         checks.append(Check(f"응답 제외:{s}", s not in obs.response, f"응답={snippet}"))
+    for s in expect.get("plan_includes", []):
+        checks.append(Check(f"계획 포함:{s}", any(s in t for t in obs.plan_steps), f"plan={obs.plan_steps}"))
     return Verdict(all(c.ok for c in checks), checks)
 
 
