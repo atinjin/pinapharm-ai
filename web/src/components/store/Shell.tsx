@@ -4,6 +4,7 @@ import { useStore } from "@/components/store/StoreProvider";
 import { Landing } from "@/components/store/Landing";
 import { ChatPanel } from "@/components/store/ChatPanel";
 import { Storefront } from "@/components/store/Storefront";
+import { CartPanel } from "@/components/store/CartPanel";
 
 export function Shell() {
   const { started, dockOpen, setDockOpen, matchedIds } = useStore();
@@ -70,6 +71,9 @@ export function Shell() {
           )}
         </div>
       )}
+
+      {/* 장바구니 슬라이드오버 (cartOpen일 때만 렌더) */}
+      <CartPanel />
     </div>
   );
 }
