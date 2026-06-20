@@ -1,8 +1,9 @@
 "use client";
 import { useState } from "react";
+import { loadTossPayments, ANONYMOUS } from "@tosspayments/tosspayments-sdk";
 
 type SubmitResult =
-  | { ok: true }
+  | { ok: true; orderNumber: string; total: number; orderName: string }
   | { ok: false; error: string; detail?: { name?: string } };
 
 type Props = {
@@ -27,15 +28,45 @@ export function CheckoutForm({ onSubmit, onBack }: Props) {
     if (!canSubmit) return;
     setSubmitting(true);
     setError(null);
+
     const result = await onSubmit({ recipient, phone, address, addressDetail, zipcode, memo });
-    setSubmitting(false);
+
     if (!result.ok) {
+      setSubmitting(false);
       const detail = result.detail;
       if (detail?.name) {
         setError(`${result.error} (재고 부족: ${detail.name})`);
       } else {
         setError(result.error);
       }
+      return;
+    }
+
+    // Launch Toss payment window (redirect flow)
+    const clientKey = process.env.NEXT_PUBLIC_TOSS_CLIENT_KEY;
+    if (!clientKey) {
+      setSubmitting(false);
+      setError("결제 설정이 올바르지 않습니다. 관리자에게 문의해 주세요. (NEXT_PUBLIC_TOSS_CLIENT_KEY 미설정)");
+      return;
+    }
+
+    try {
+      const toss = await loadTossPayments(clientKey);
+      const payment = toss.payment({ customerKey: ANONYMOUS });
+      await payment.requestPayment({
+        method: "CARD",
+        amount: { currency: "KRW", value: result.total },
+        orderId: result.orderNumber,
+        orderName: result.orderName,
+        successUrl: `${window.location.origin}/payments/success`,
+        failUrl: `${window.location.origin}/payments/fail`,
+        customerName: recipient,
+      });
+      // requestPayment redirects on success; code below only runs on error/cancel
+    } catch (err: unknown) {
+      setSubmitting(false);
+      const msg = err instanceof Error ? err.message : "결제창을 열 수 없습니다.";
+      setError(msg);
     }
   }
 
@@ -137,7 +168,7 @@ export function CheckoutForm({ onSubmit, onBack }: Props) {
         disabled={!canSubmit || submitting}
         className="w-full rounded-full bg-slate-900 py-3 text-sm font-semibold text-white transition hover:bg-slate-700 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
       >
-        {submitting ? "처리 중…" : "주문 확인"}
+        {submitting ? "처리 중…" : "결제하기"}
       </button>
     </form>
   );

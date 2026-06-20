@@ -3,14 +3,11 @@ import { useState } from "react";
 import { useStore } from "@/components/store/StoreProvider";
 import { CheckoutForm } from "@/components/store/CheckoutForm";
 
-type Mode = "cart" | "checkout" | "done";
-
-type Order = { orderNumber: string; total: number };
+type Mode = "cart" | "checkout";
 
 export function CartPanel() {
   const { cart, cartOpen, setCartOpen, updateQty, removeFromCart, checkout } = useStore();
   const [mode, setMode] = useState<Mode>("cart");
-  const [order, setOrder] = useState<Order | null>(null);
 
   if (!cartOpen) return null;
 
@@ -23,16 +20,19 @@ export function CartPanel() {
     setCartOpen(false);
     // reset mode after close animation (immediate reset is fine since panel is removed)
     setMode("cart");
-    setOrder(null);
   }
 
-  async function handleCheckout(shipping: Record<string, string>) {
-    const res = await checkout(shipping);
+  async function handleCheckout(shippingInfo: Record<string, string>) {
+    const res = await checkout(shippingInfo);
     if (res.ok && res.order) {
       const o = res.order as { orderNumber: string; total: number };
-      setOrder({ orderNumber: o.orderNumber, total: o.total });
-      setMode("done");
-      return { ok: true as const };
+      const firstItem = items[0];
+      const orderName = firstItem
+        ? items.length > 1
+          ? `${firstItem.name} 외 ${items.length - 1}건`
+          : firstItem.name
+        : "주문";
+      return { ok: true as const, orderNumber: o.orderNumber, total: o.total, orderName };
     }
     const detail = res.detail as { name?: string } | undefined;
     return { ok: false as const, error: res.error ?? "주문 실패", detail };
@@ -50,7 +50,6 @@ export function CartPanel() {
           <h2 className="text-sm font-bold text-slate-900">
             {mode === "cart" && "장바구니"}
             {mode === "checkout" && "주문하기"}
-            {mode === "done" && "주문 완료"}
           </h2>
           <button
             onClick={handleClose}
@@ -130,25 +129,6 @@ export function CartPanel() {
 
           {mode === "checkout" && (
             <CheckoutForm onSubmit={handleCheckout} onBack={() => setMode("cart")} />
-          )}
-
-          {mode === "done" && order && (
-            <div className="flex flex-col items-center px-6 py-10 text-center">
-              <span className="mb-4 text-5xl">✅</span>
-              <h3 className="text-base font-bold text-slate-900">주문이 접수되었습니다</h3>
-              <p className="mt-1 text-[13px] text-slate-500">주문번호: {order.orderNumber}</p>
-              <p className="mt-0.5 text-[13px] text-slate-500">총액: {order.total.toLocaleString()}원</p>
-              <p className="mt-0.5 text-[13px] text-slate-500">상태: 결제 대기 (pending)</p>
-              <p className="mt-4 rounded-xl bg-slate-50 px-4 py-3 text-[13px] text-slate-500">
-                결제는 다음 단계에서 준비 중입니다
-              </p>
-              <button
-                onClick={handleClose}
-                className="mt-6 rounded-full bg-slate-900 px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-700"
-              >
-                닫기
-              </button>
-            </div>
           )}
         </div>
 

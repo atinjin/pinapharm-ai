@@ -17,6 +17,7 @@
   "dependencies": {
     "@ai-sdk/react": "^3.0.206",
     "@prisma/client": "^6.19.3",
+    "@tosspayments/tosspayments-sdk": "^2.7.1",
     "ai": "^6.0.204",
     "next": "16.2.9",
     "prisma": "^6.19.3",
