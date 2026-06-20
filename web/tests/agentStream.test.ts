@@ -27,4 +27,11 @@ describe("extractFromSSE", () => {
       'event: done\r\ndata: {}\r\n\r\n';
     expect(extractFromSSE(raw)).toEqual({ text: "비타민C", ids: [7] });
   });
+  it("plan 이벤트는 무시한다(텍스트·ids에 영향 없음)", () => {
+    const raw =
+      'event: plan\ndata: {"steps":["증상 정리","제품 검색"]}\n\n' +
+      'event: token\ndata: {"text":"안녕"}\n\n' +
+      'event: recommendations\ndata: {"ids":[5]}\n\n';
+    expect(extractFromSSE(raw)).toEqual({ text: "안녕", ids: [5] });
+  });
 });

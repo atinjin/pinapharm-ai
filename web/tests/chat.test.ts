@@ -22,6 +22,7 @@ describe("/api/chat 상담/추천 적재", () => {
 
     // Build SSE stream that the stubbed fetch returns
     const sseFrames = [
+      `event: plan\ndata: {"steps":["증상 정리"]}\n\n`,
       `event: token\ndata: {"text":"비타민"}\n\n`,
       `event: token\ndata: {"text":"C 추천"}\n\n`,
       `event: recommendations\ndata: {"ids":[${productId}]}\n\n`,

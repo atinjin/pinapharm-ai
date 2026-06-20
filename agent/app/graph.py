@@ -10,6 +10,7 @@ from langgraph.graph import START, END, StateGraph
 from langgraph.graph.message import add_messages
 
 from app import triage
+from app.planner import make_plan
 from app.prompts import EMERGENCY_MESSAGE
 from app.config_client import get_config, build_system_prompt, fetch_skill_body
 from app.tools import (
@@ -33,6 +34,7 @@ class AgentState(TypedDict):
     recommended_ids: list[int]
     tool_turns: int
     triage: str
+    plan: list
 
 
 def _chat_model() -> ChatAnthropic:
@@ -49,8 +51,30 @@ async def triage_node(state: AgentState) -> dict:
     return {"triage": decision}
 
 
-def route_triage(state: AgentState) -> Literal["agent", "emergency"]:
-    return "emergency" if state.get("triage") == "emergency" else "agent"
+def route_triage(state: AgentState) -> Literal["plan", "emergency"]:
+    return "emergency" if state.get("triage") == "emergency" else "plan"
+
+
+async def plan_node(state: AgentState) -> dict:
+    steps = await make_plan(_last_human_text(state))
+    writer = get_stream_writer()
+    writer({"type": "plan", "steps": [s["title"] for s in steps]})
+    return {"plan": steps}
+
+
+def _plan_checklist(state: AgentState) -> str:
+    steps = state.get("plan") or []
+    if not steps:
+        return ""
+    lines = ["## 상담 계획", "아래 계획을 참고하되, 대화 흐름에 맞게 유연하게 진행하세요(체크리스트, 강제 아님):"]
+    for s in steps:
+        hint = f" (도구: {s['tool']})" if s.get("tool") else ""
+        lines.append(f"- {s['title']}{hint}")
+    lines.append(
+        "프로필 조회 결과가 비어 있더라도 거기서 멈추거나 되묻기만 하지 말고, "
+        "추천이 필요한 상담이면 같은 턴에 search_products로 제품을 찾아 추천까지 마치세요."
+    )
+    return "\n".join(lines)
 
 
 async def agent_node(state: AgentState) -> dict:
@@ -59,6 +83,9 @@ async def agent_node(state: AgentState) -> dict:
         [search_products, get_health_profile, save_health_profile, load_consultation_skill, retrieve_knowledge]
     )
     system = build_system_prompt(cfg)
+    checklist = _plan_checklist(state)
+    if checklist:
+        system = f"{system}\n\n{checklist}"
     resp = await model.ainvoke([SystemMessage(content=system)] + state["messages"])
     return {"messages": [resp]}
 
@@ -117,6 +144,9 @@ def route_after_agent(state: AgentState) -> Literal["tools", "finalize", "__end_
 async def finalize_node(state: AgentState) -> dict:
     cfg = await get_config()
     system = build_system_prompt(cfg)
+    checklist = _plan_checklist(state)
+    if checklist:
+        system = f"{system}\n\n{checklist}"
     resp = await _chat_model().ainvoke([SystemMessage(content=system)] + state["messages"])
     return {"messages": [resp]}
 
@@ -132,13 +162,15 @@ async def emergency_node(state: AgentState) -> dict:
 def build_graph(checkpointer):
     g = StateGraph(AgentState)
     g.add_node("triage", triage_node)
+    g.add_node("plan", plan_node)
     g.add_node("agent", agent_node)
     g.add_node("tools", tools_node)
     g.add_node("finalize", finalize_node)
     g.add_node("emergency", emergency_node)
 
     g.add_edge(START, "triage")
-    g.add_conditional_edges("triage", route_triage, {"agent": "agent", "emergency": "emergency"})
+    g.add_conditional_edges("triage", route_triage, {"plan": "plan", "emergency": "emergency"})
+    g.add_edge("plan", "agent")
     g.add_conditional_edges(
         "agent", route_after_agent, {"tools": "tools", "finalize": "finalize", END: END}
     )

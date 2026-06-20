@@ -30,6 +30,9 @@ type StoreState = {
   ask: (q: string) => void;
   /** 에이전트가 실제 추천(조회)한 제품 ID로 우측 패널을 갱신 */
   setRecommended: (ids: number[]) => void;
+  /** 에이전트가 방출한 상담 계획 단계 목록 */
+  plan: string[] | null;
+  setPlan: (steps: string[]) => void;
   clearSearch: () => void;
   /** internal chat bridge */
   outbound: { id: number; text: string } | null;
@@ -52,6 +55,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [dockOpen, setDockOpen] = useState(false);
   const [started, setStarted] = useState(false);
   const [outbound, setOutbound] = useState<{ id: number; text: string } | null>(null);
+  const [plan, setPlanState] = useState<string[] | null>(null);
   const askSeq = useRef(0);
 
   // load full catalog once (no params -> all active products)
@@ -90,6 +94,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
   const setRecommended = useCallback((ids: number[]) => setMatchedIds(ids), []);
 
+  const setPlan = useCallback((steps: string[]) => setPlanState(steps), []);
+
   const clearSearch = useCallback(() => {
     setQuery(null);
     setMatchedIds([]);
@@ -124,6 +130,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     clearSearch,
     outbound,
     consumeOutbound,
+    plan,
+    setPlan,
   };
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

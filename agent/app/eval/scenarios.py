@@ -35,4 +35,12 @@ SCENARIOS = [
             "tools_used": ["retrieve_knowledge"],
         },
     },
+    {
+        "name": "plan_recommend",
+        "category": "behavior",
+        "message": "피부가 건조해서 도움이 될 만한 제품 추천해주세요.",
+        "expect": {
+            "plan_includes": ["검색"],
+        },
+    },
 ]
