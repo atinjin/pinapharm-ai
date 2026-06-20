@@ -28,6 +28,7 @@ venv/
 # dev server runtime
 .pids/
 .logs/
+.history/
 
 # agent worktrees / local agent state
 .claude/
