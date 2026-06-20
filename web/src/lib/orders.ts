@@ -96,7 +96,8 @@ export async function cancelOrder(id: number, customerId: number) {
   if (!["pending", "paid"].includes(order.status)) {
     throw new CommerceError("INVALID_TRANSITION", `취소할 수 없는 상태입니다: ${order.status}`);
   }
-  if (order.status === "paid" && order.paymentKey) {
+  if (order.status === "paid") {
+    if (!order.paymentKey) throw new CommerceError("PAYMENT_FAILED", "결제 키가 없어 환불할 수 없습니다.");
     await tossCancel(order.paymentKey, "고객 취소"); // 외부, 트랜잭션 밖
   }
   const nextStatus = order.status === "paid" ? "refunded" : "cancelled";

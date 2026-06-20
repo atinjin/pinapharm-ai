@@ -81,4 +81,14 @@ describe("cancelOrder 환불 인지", () => {
     expect(tossCancel).not.toHaveBeenCalled();
     expect((await prisma.product.findUnique({ where: { id: productId } }))!.stock).toBe(10);
   });
+
+  it("paid인데 paymentKey 없으면 PAYMENT_FAILED, 재고·상태 불변", async () => {
+    const { c, order } = await pendingOrder(`p-${Date.now()}-7`);
+    // confirmPayment 없이 강제로 paid + paymentKey null 상태 생성(있을 수 없는 상태 방어)
+    await prisma.order.update({ where: { id: order.id }, data: { status: "paid", paymentKey: null } });
+    const before = (await prisma.product.findUnique({ where: { id: productId } }))!.stock;
+    await expect(cancelOrder(order.id, c)).rejects.toMatchObject({ code: "PAYMENT_FAILED" });
+    expect((await prisma.product.findUnique({ where: { id: productId } }))!.stock).toBe(before);
+    expect((await prisma.order.findUnique({ where: { id: order.id } }))!.status).toBe("paid");
+  });
 });
