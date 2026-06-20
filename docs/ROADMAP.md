@@ -108,12 +108,13 @@ agent/  FastAPI + LangGraph (Claude) 약사 에이전트 (tool-use 루프, Pytho
 - [ ] 결제 승인·취소·부분취소·환불 + 웹훅(결제완료 콜백) **서명 검증**, 멱등키로 이중결제 방지
 - [ ] 카드정보 비저장(PG 토큰화), **서버측 가격 신뢰**(클라이언트 전송 금액 변조 방지)
 
-#### E2. 장바구니·주문
+#### E2. 장바구니·주문 ✅
 
-- [ ] 장바구니(다중 상품·수량) + 주문서(line items)·총액·배송비·할인 계산
-- [ ] `Order` 확장: `customerId`·주문번호·**주문시점 가격 스냅샷**·결제정보·배송지 스냅샷 + `OrderItem`(현재 단일 product 한계 해소)
-- [ ] 주문 상태 머신: created→paid→preparing→shipped→delivered / cancelled·refunded
-- [ ] 재고 차감·복원(주문 시 차감, 취소·결제실패 시 복원), **동시성 오버셀 방지**(트랜잭션/락)
+- [x] **서버 영속 장바구니**(다중 상품·수량) `Cart`/`CartItem` + `/api/cart`. 주문서 line items·총액·배송비(상수 3,000원, 5만원↑ 무료) 계산.
+- [x] `Order` 재설계: `customerId`·주문번호·**주문시점 가격 스냅샷**(`OrderItem.productName/unitPrice`)·배송지 스냅샷. 결제정보 컬럼은 E1.
+- [x] 주문 상태 머신: `pending`(생성) → `cancelled`(취소). `paid`(E1)·배송 단계(E3)·`refunded`(E1)는 후속.
+- [x] **트랜잭션 재고 차감·복원**(`prisma.$transaction` + 조건부 `updateMany stock gte` → 오버셀 원천 차단, 취소 시 복원).
+- 구현: [spec](superpowers/specs/2026-06-20-commerce-cart-order-design.md) · [plan](superpowers/plans/2026-06-20-commerce-cart-order.md). 할인(`discount`)은 필드만 두고 0(쿠폰은 후속).
 
 #### E3. 배송
 
