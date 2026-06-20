@@ -95,7 +95,8 @@ agent/  FastAPI + LangGraph (Claude) 약사 에이전트 (tool-use 루프, Pytho
 ### D. 상담 품질
 - [x] **RAG** — 제품 하이브리드·구조화 검색 + 지식 문서 청킹 그라운딩 ✅ (위 "5. RAG" 참고)
 - [ ] (RAG 운영) Voyage 결제수단 등록 후 제품 전량 색인 + 원료/지식 코퍼스 약사 검수 확장
-- [ ] 멀티에이전트 / 다단계 추론
+- [x] **다단계 추론 (명시적 플래너)** — `triage` 다음 `plan` 노드가 짧은 상담 계획을 세워 **채팅에 노출**(SSE `event:"plan"`)하고 **시스템 프롬프트 체크리스트로 주입**해 agent 루프를 안내. 계획 실패 시 빈 계획 폴백(무가이드 진행). eval `plan_includes`로 회귀 검증. 설계: [planner plan](superpowers/plans/2026-06-20-planner-reasoning.md)
+- [ ] 멀티에이전트(라우터→전문 에이전트) — 단일 에이전트 tool-use 루프로 충분해 보류
 - [x] **eval 하네스** — 상담 안전·행동 회귀 평가(결정적 어서션). `make eval` / `python -m app.eval`, safety 시나리오 실패 시 비정상 종료. 설계: [eval spec](superpowers/specs/2026-06-19-eval-harness-design.md) · [plan](superpowers/plans/2026-06-19-eval-harness.md)
 
 ### E. 커머스
@@ -110,4 +111,5 @@ agent/  FastAPI + LangGraph (Claude) 약사 에이전트 (tool-use 루프, Pytho
 ## 알려진 차이 / 메모
 
 - 에이전트 설정·상담 스킬의 폴백 기본값은 `agent/app/prompts.py`(+`triage.py`)와 `web/src/lib/agentConfig.ts`의 `DEFAULTS`에 **이중으로** 존재 — 한쪽만 바꾸면 어긋날 수 있으니 동시 수정.
+- 플래너 프롬프트(`planPrompt`/`PLAN_SYSTEM`)는 현재 **agent 단일 소스**(`prompts.py`·`config_client.DEFAULT_CONFIG`)이며 web `agentConfig.ts`·`/api/agent-config`엔 미반영 — agent가 자체 상수로 폴백. 추후 어드민 편집 UI 도입 시 이중 동기화 대상에 포함해야 함.
 - 운영 전제: 버전(`Revision`) 보존 정책 없음(소규모 가정), `AGENT_URL`은 운영자 신뢰(검증 없음), 스킬 매칭 미리보기는 어휘 기반(의미 X). 어드민 인증은 미구현(A 항목).
