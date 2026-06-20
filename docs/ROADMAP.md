@@ -102,11 +102,12 @@ agent/  FastAPI + LangGraph (Claude) 약사 에이전트 (tool-use 루프, Pytho
 ### E. 커머스 — 실제 상품 판매
 > 현재 상태: 결제 없이 `Order` 기록만 생성(`productId·quantity·status`). 고객 연결·가격 스냅샷·결제·배송·다중상품(line items) 모두 없음. 실판매까지 아래가 필요하다.
 
-#### E1. 결제 (PG 연동)
+#### E1. 결제 (PG 연동) ✅
 
-- [ ] PG 연동 — 포트원(아임포트)/토스페이먼츠 등, 카드·간편결제(네이버·카카오·토스페이)·계좌이체
-- [ ] 결제 승인·취소·부분취소·환불 + 웹훅(결제완료 콜백) **서명 검증**, 멱등키로 이중결제 방지
-- [ ] 카드정보 비저장(PG 토큰화), **서버측 가격 신뢰**(클라이언트 전송 금액 변조 방지)
+- [x] **토스페이먼츠 연동**(테스트 키) — 결제창(SDK 리다이렉트) → 서버 confirm → `pending→paid`.
+- [x] 승인·**취소/환불**(`paid` 취소 시 PG 환불→`refunded`+재고 복원) + **웹훅 서명검증**(HMAC-SHA256, Toss 재조회로 재조정) + confirm **멱등**(이미 paid면 재confirm 차단=이중결제 방지).
+- [x] **카드정보 비저장**(paymentKey만) · **서버측 금액 신뢰**(클라 amount가 DB total과 일치할 때만 승인).
+- 구현: [spec](superpowers/specs/2026-06-20-commerce-payment-toss-design.md) · [plan](superpowers/plans/2026-06-20-commerce-payment-toss.md). 백엔드 전구간 vitest(Toss는 fetch 목). **부분취소**·정기결제·다중결제수단 UI는 범위 밖. 웹훅 시크릿은 Toss 대시보드 필요, 실 결제는 실 키 교체.
 
 #### E2. 장바구니·주문 ✅
 
