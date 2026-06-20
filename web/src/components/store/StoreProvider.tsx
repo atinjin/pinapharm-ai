@@ -1,5 +1,9 @@
 "use client";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { getSessionId } from "@/lib/session";
+
+type CartItemView = { productId: number; name: string; price: number; quantity: number; lineTotal: number; isActive: boolean; stock: number };
+type CartView = { items: CartItemView[]; subtotal: number };
 
 export type StoreProduct = {
   id: number;
@@ -37,6 +41,16 @@ type StoreState = {
   /** internal chat bridge */
   outbound: { id: number; text: string } | null;
   consumeOutbound: () => void;
+  /** 장바구니 */
+  cart: CartView | null;
+  cartCount: number;
+  cartOpen: boolean;
+  setCartOpen: (v: boolean) => void;
+  addToCart: (productId: number) => Promise<void>;
+  updateQty: (productId: number, quantity: number) => Promise<void>;
+  removeFromCart: (productId: number) => Promise<void>;
+  refreshCart: () => Promise<void>;
+  checkout: (shipping: Record<string, string>) => Promise<{ ok: boolean; order?: unknown; error?: string; detail?: unknown }>;
 };
 
 const Ctx = createContext<StoreState | null>(null);
@@ -56,6 +70,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [started, setStarted] = useState(false);
   const [outbound, setOutbound] = useState<{ id: number; text: string } | null>(null);
   const [plan, setPlanState] = useState<string[] | null>(null);
+  const [cart, setCart] = useState<CartView | null>(null);
+  const [cartOpen, setCartOpen] = useState(false);
   const askSeq = useRef(0);
 
   // load full catalog once (no params -> all active products)
@@ -101,6 +117,31 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     setMatchedIds([]);
   }, []);
 
+  const refreshCart = useCallback(async () => {
+    const r = await fetch(`/api/cart?session_id=${encodeURIComponent(getSessionId())}`);
+    if (r.ok) setCart(await r.json());
+  }, []);
+  const addToCart = useCallback(async (productId: number) => {
+    const r = await fetch("/api/cart", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ session_id: getSessionId(), productId, quantity: 1 }) });
+    if (r.ok) setCart(await r.json());
+  }, []);
+  const updateQty = useCallback(async (productId: number, quantity: number) => {
+    const r = await fetch("/api/cart", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ session_id: getSessionId(), productId, quantity }) });
+    if (r.ok) setCart(await r.json());
+  }, []);
+  const removeFromCart = useCallback(async (productId: number) => {
+    const r = await fetch("/api/cart", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ session_id: getSessionId(), productId }) });
+    if (r.ok) setCart(await r.json());
+  }, []);
+  const checkout = useCallback(async (shipping: Record<string, string>) => {
+    const r = await fetch("/api/orders", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ session_id: getSessionId(), shipping }) });
+    const data = await r.json();
+    if (r.ok) { await refreshCart(); return { ok: true, order: data }; }
+    return { ok: false, error: data?.error?.toString?.() ?? data?.code ?? "주문 실패", detail: data?.detail };
+  }, [refreshCart]);
+
+  useEffect(() => { void refreshCart(); }, [refreshCart]);
+
   const allTags = useMemo(() => {
     const s = new Set<string>();
     for (const p of all) (p.conditionTags ?? []).forEach((t) => s.add(t));
@@ -114,6 +155,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     const rest = all.filter((p) => !matchedSet.has(p.id));
     return [...matched, ...rest];
   }, [all, query, matchedIds]);
+
+  const cartCount = cart?.items.reduce((s, it) => s + it.quantity, 0) ?? 0;
 
   const value: StoreState = {
     all,
@@ -132,6 +175,15 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     consumeOutbound,
     plan,
     setPlan,
+    cart,
+    cartCount,
+    cartOpen,
+    setCartOpen,
+    addToCart,
+    updateQty,
+    removeFromCart,
+    refreshCart,
+    checkout,
   };
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

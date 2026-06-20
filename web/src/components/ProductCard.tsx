@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import type { StoreProduct } from "@/components/store/StoreProvider";
+import { useStore } from "@/components/store/StoreProvider";
 
 // Ritual풍 소프트 파스텔 타일 팔레트 (제품별로 순환)
 const TILES = ["#FBF4DA", "#EAE7FB", "#E4F1EC", "#FCEAE3", "#E4EEFB", "#F2EFEA"];
@@ -8,15 +9,12 @@ const TILES = ["#FBF4DA", "#EAE7FB", "#E4F1EC", "#FCEAE3", "#E4EEFB", "#F2EFEA"]
 export function ProductCard({ p, recommended }: { p: StoreProduct; recommended?: boolean }) {
   const [bought, setBought] = useState(false);
   const [loading, setLoading] = useState(false);
+  const { addToCart } = useStore();
   const tile = TILES[p.id % TILES.length];
 
   async function buy() {
     setLoading(true);
-    await fetch("/api/orders", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ productId: p.id, quantity: 1 }),
-    });
+    await addToCart(p.id);
     setLoading(false);
     setBought(true);
   }

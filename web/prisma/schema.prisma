@@ -34,7 +34,8 @@ model Product {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   recommendations Recommendation[]
-  orders          Order[]
+  cartItems       CartItem[]
+  orderItems      OrderItem[]
 }
 
 model Consultation {
@@ -67,12 +68,55 @@ model Recommendation {
 }
 
 model Order {
-  id        Int      @id @default(autoincrement())
-  product   Product  @relation(fields: [productId], references: [id])
+  id            Int         @id @default(autoincrement())
+  orderNumber   String      @unique
+  customer      Customer    @relation(fields: [customerId], references: [id])
+  customerId    Int
+  items         OrderItem[]
+  status        String      @default("pending")
+  subtotal      Int
+  shippingFee   Int         @default(0)
+  discount      Int         @default(0)
+  total         Int
+  recipient     String
+  phone         String
+  address       String
+  addressDetail String?
+  zipcode       String?
+  memo          String?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+}
+
+model OrderItem {
+  id          Int     @id @default(autoincrement())
+  order       Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  orderId     Int
+  product     Product @relation(fields: [productId], references: [id])
+  productId   Int
+  productName String
+  unitPrice   Int
+  quantity    Int
+  lineTotal   Int
+}
+
+model Cart {
+  id         Int        @id @default(autoincrement())
+  customer   Customer   @relation(fields: [customerId], references: [id])
+  customerId Int        @unique
+  items      CartItem[]
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+}
+
+model CartItem {
+  id        Int     @id @default(autoincrement())
+  cart      Cart    @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  cartId    Int
+  product   Product @relation(fields: [productId], references: [id])
   productId Int
-  quantity  Int      @default(1)
-  status    String   @default("created")
-  createdAt DateTime @default(now())
+  quantity  Int     @default(1)
+  @@unique([cartId, productId])
 }
 
 model Customer {
@@ -80,6 +124,8 @@ model Customer {
   identities    Identity[]
   healthProfile HealthProfile?
   consultations Consultation[]
+  cart          Cart?
+  orders        Order[]
   createdAt     DateTime       @default(now())
 }
 

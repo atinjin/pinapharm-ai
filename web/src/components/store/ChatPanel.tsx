@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { useStore } from "@/components/store/StoreProvider";
+import { getSessionId } from "@/lib/session";
 
 type Msg = { role: "user" | "assistant"; content: string };
 
@@ -14,13 +15,6 @@ export function ChatPanel() {
   const msgsRef = useRef<Msg[]>([]);
   const endRef = useRef<HTMLDivElement>(null);
   const lastAsk = useRef(0);
-  const sessionId = useRef<string>("");
-  if (!sessionId.current) {
-    const stored = typeof window !== "undefined" ? localStorage.getItem("pham_session_id") : null;
-    const newId = stored ?? crypto.randomUUID();
-    if (!stored && typeof window !== "undefined") localStorage.setItem("pham_session_id", newId);
-    sessionId.current = newId;
-  }
 
   useEffect(() => {
     msgsRef.current = messages;
@@ -50,7 +44,7 @@ export function ChatPanel() {
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: text, session_id: sessionId.current }),
+        body: JSON.stringify({ message: text, session_id: getSessionId() }),
       });
       setMessages([...next, { role: "assistant", content: "" }]);
       const reader = res.body!.getReader();
