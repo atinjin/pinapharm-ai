@@ -39,6 +39,8 @@ async def stream_events(graph, message: str, session_id: str) -> AsyncIterator[d
                     yield {"event": "recommendations", "data": json.dumps({"ids": chunk["ids"]})}
                 elif t == "emergency":
                     yield {"event": "emergency", "data": json.dumps({"message": chunk["message"]})}
+                elif t == "plan":
+                    yield {"event": "plan", "data": json.dumps({"steps": chunk["steps"]})}
         yield {"event": "done", "data": "{}"}
     except Exception:
         logger.exception("agent 스트림 처리 실패")

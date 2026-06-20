@@ -23,6 +23,7 @@ async def test_stream_events_emits_recommendations_and_done():
         _ai(text="비타민C를 추천드려요."),
     ])
     with patch("app.triage.classify", new=AsyncMock(return_value="normal")), \
+         patch("app.graph.make_plan", new=AsyncMock(return_value=[])), \
          patch("app.graph._chat_model", return_value=fake_model), \
          patch("app.graph._fetch_products", new=AsyncMock(return_value=[{"id": 1, "name": "비타민C"}])):
         graph = build_graph(MemorySaver())
@@ -52,9 +53,25 @@ async def test_stream_events_redacts_pii_at_ingress():
 
     fake_model = _model([_ai(text="네, 도와드릴게요.")])
     with patch("app.triage.classify", new=capturing_classify), \
+         patch("app.graph.make_plan", new=AsyncMock(return_value=[])), \
          patch("app.graph._chat_model", return_value=fake_model):
         graph = build_graph(MemorySaver())
         async for _ in stream_events(graph, "제 번호 010-1234-5678", "sP"):
             pass
     assert "010-1234-5678" not in seen["msg"]
     assert "[전화번호]" in seen["msg"]
+
+
+async def test_stream_events_emits_plan_before_tokens():
+    fake_model = _model([_ai(text="도와드릴게요.")])
+    plan = [{"title": "증상 정리", "tool": None}]
+    with patch("app.triage.classify", new=AsyncMock(return_value="normal")), \
+         patch("app.graph.make_plan", new=AsyncMock(return_value=plan)), \
+         patch("app.graph._chat_model", return_value=fake_model):
+        graph = build_graph(MemorySaver())
+        events = [e async for e in stream_events(graph, "피곤해요", "sPlan")]
+    types = [e["event"] for e in events]
+    assert "plan" in types
+    assert json.loads(next(e for e in events if e["event"] == "plan")["data"])["steps"] == ["증상 정리"]
+    assert types.index("plan") < types.index("token")
+    assert types[-1] == "done"
