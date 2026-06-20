@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { CommerceError } from "@/lib/commerceErrors";
+import { tossConfirm, tossCancel } from "@/lib/payments";
 
 export const SHIPPING_FEE = 3000;
 export const FREE_SHIPPING_OVER = 50000;
@@ -75,16 +76,48 @@ export async function getOrder(id: number, customerId: number) {
   return order;
 }
 
+export async function confirmPayment(orderNumber: string, paymentKey: string, amount: number, customerId: number) {
+  const order = await prisma.order.findUnique({ where: { orderNumber }, include: { items: true } });
+  if (!order || order.customerId !== customerId) throw new CommerceError("NOT_FOUND", "주문을 찾을 수 없습니다.");
+  if (order.status === "paid") return order; // 멱등
+  if (order.status !== "pending") throw new CommerceError("INVALID_TRANSITION", `결제할 수 없는 상태입니다: ${order.status}`);
+  if (amount !== order.total) throw new CommerceError("AMOUNT_MISMATCH", "결제 금액이 주문 금액과 일치하지 않습니다.", { expected: order.total, got: amount });
+  const payment = await tossConfirm({ paymentKey, orderId: orderNumber, amount });
+  return prisma.order.update({
+    where: { id: order.id },
+    data: { status: "paid", paymentKey: payment.paymentKey, paymentMethod: payment.method ?? null, paidAt: new Date(), pgProvider: "toss" },
+    include: { items: true },
+  });
+}
+
 export async function cancelOrder(id: number, customerId: number) {
+  const order = await prisma.order.findUnique({ where: { id }, include: { items: true } });
+  if (!order || order.customerId !== customerId) throw new CommerceError("NOT_FOUND", "주문을 찾을 수 없습니다.");
+  if (!["pending", "paid"].includes(order.status)) {
+    throw new CommerceError("INVALID_TRANSITION", `취소할 수 없는 상태입니다: ${order.status}`);
+  }
+  if (order.status === "paid" && order.paymentKey) {
+    await tossCancel(order.paymentKey, "고객 취소"); // 외부, 트랜잭션 밖
+  }
+  const nextStatus = order.status === "paid" ? "refunded" : "cancelled";
   return prisma.$transaction(async (tx) => {
-    const order = await tx.order.findUnique({ where: { id }, include: { items: true } });
-    if (!order || order.customerId !== customerId) throw new CommerceError("NOT_FOUND", "주문을 찾을 수 없습니다.");
-    if (!["pending", "paid"].includes(order.status)) {
-      throw new CommerceError("INVALID_TRANSITION", `취소할 수 없는 상태입니다: ${order.status}`);
-    }
     for (const it of order.items) {
       await tx.product.update({ where: { id: it.productId }, data: { stock: { increment: it.quantity } } });
     }
-    return tx.order.update({ where: { id }, data: { status: "cancelled" }, include: { items: true } });
+    return tx.order.update({ where: { id }, data: { status: nextStatus }, include: { items: true } });
   });
+}
+
+// 웹훅 재조정(멱등): Toss가 source of truth
+export async function reconcileFromToss(orderNumber: string, payment: { status: string; paymentKey: string; method?: string }) {
+  const order = await prisma.order.findUnique({ where: { orderNumber }, include: { items: true } });
+  if (!order) return;
+  if (payment.status === "DONE" && order.status === "pending") {
+    await prisma.order.update({ where: { id: order.id }, data: { status: "paid", paymentKey: payment.paymentKey, paymentMethod: payment.method ?? null, paidAt: new Date(), pgProvider: "toss" } });
+  } else if (payment.status === "CANCELED" && order.status === "paid") {
+    await prisma.$transaction(async (tx) => {
+      for (const it of order.items) await tx.product.update({ where: { id: it.productId }, data: { stock: { increment: it.quantity } } });
+      await tx.order.update({ where: { id: order.id }, data: { status: "refunded" } });
+    });
+  }
 }
