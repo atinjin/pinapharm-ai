@@ -7,7 +7,7 @@ import { useStore } from "@/components/store/StoreProvider";
 type Msg = { role: "user" | "assistant"; content: string };
 
 export function ChatPanel() {
-  const { outbound, consumeOutbound, ask, setRecommended } = useStore();
+  const { outbound, consumeOutbound, ask, setRecommended, setPlan, plan } = useStore();
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -40,6 +40,7 @@ export function ChatPanel() {
   }, [outbound]);
 
   async function stream(text: string) {
+    setPlan([]);
     const next: Msg[] = [...msgsRef.current, { role: "user", content: text }];
     setMessages(next);
     setLoading(true);
@@ -73,6 +74,9 @@ export function ChatPanel() {
           } else if (ev.event === "recommendations") {
             const ids = JSON.parse(ev.data).ids;
             if (Array.isArray(ids) && ids.length > 0) setRecommended(ids);
+          } else if (ev.event === "plan") {
+            const steps = JSON.parse(ev.data).steps;
+            if (Array.isArray(steps) && steps.length > 0) setPlan(steps);
           } else if (ev.event === "error") {
             acc += "\n\n" + JSON.parse(ev.data).message;
             setMessages([...next, { role: "assistant", content: acc }]);
@@ -111,6 +115,7 @@ export function ChatPanel() {
               <div key={i} className="animate-msg-in flex gap-3">
                 <span className="spark mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs text-white">✦</span>
                 <div className="min-w-0 flex-1">
+                  {m.role === "assistant" && i === messages.length - 1 && plan && plan.length > 0 && <PlanBlock steps={plan} />}
                   {m.content ? (
                     <div className="chat-md">
                       <ReactMarkdown remarkPlugins={[remarkGfm]}>{m.content}</ReactMarkdown>
@@ -162,6 +167,20 @@ export function ChatPanel() {
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+function PlanBlock({ steps }: { steps: string[] }) {
+  return (
+    <div className="mb-2 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
+      <div className="mb-1.5 flex items-center gap-2 text-[13px] font-medium text-slate-600">
+        <span className="spark flex h-5 w-5 items-center justify-center rounded-full text-[10px] text-white">✦</span>
+        상담 계획
+      </div>
+      <ol className="ml-1 list-decimal space-y-0.5 pl-4 text-[13px] text-slate-600">
+        {steps.map((s, i) => <li key={i}>{s}</li>)}
+      </ol>
     </div>
   );
 }
