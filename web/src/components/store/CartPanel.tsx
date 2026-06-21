@@ -144,6 +144,12 @@ export function CartPanel() {
                 <span>배송비</span>
                 <span>{shipping === 0 ? "무료" : `${shipping.toLocaleString()}원`}</span>
               </div>
+              {/* 도서산간 안내 */}
+              {subtotal > 0 && (
+                <p className="text-[11px] text-slate-400">
+                  * 제주·도서산간 지역은 추가 배송비가 부과될 수 있습니다.
+                </p>
+              )}
               <div className="flex justify-between pt-1 text-[15px] font-bold text-slate-900">
                 <span>합계</span>
                 <span>{total.toLocaleString()}원</span>
