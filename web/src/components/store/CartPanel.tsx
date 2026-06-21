@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { useStore } from "@/components/store/StoreProvider";
 import { CheckoutForm } from "@/components/store/CheckoutForm";
+import { SHIPPING_FEE, FREE_SHIPPING_OVER } from "@/lib/shippingConstants";
 
 type Mode = "cart" | "checkout";
 
@@ -13,7 +14,7 @@ export function CartPanel() {
 
   const items = cart?.items ?? [];
   const subtotal = cart?.subtotal ?? 0;
-  const shipping = subtotal >= 50000 ? 0 : subtotal > 0 ? 3000 : 0;
+  const shipping = subtotal <= 0 ? 0 : subtotal >= FREE_SHIPPING_OVER ? 0 : SHIPPING_FEE;
   const total = subtotal + shipping;
 
   function handleClose() {

@@ -1,10 +1,10 @@
+import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { CommerceError } from "@/lib/commerceErrors";
 import { tossConfirm, tossCancel } from "@/lib/payments";
 
-export const SHIPPING_FEE = 3000;
-export const FREE_SHIPPING_OVER = 50000;
-export const REMOTE_AREA_FEE = 3000;
+export { SHIPPING_FEE, FREE_SHIPPING_OVER, REMOTE_AREA_FEE } from "@/lib/shippingConstants";
+import { SHIPPING_FEE, FREE_SHIPPING_OVER, REMOTE_AREA_FEE } from "@/lib/shippingConstants";
 const REMOTE_ZIP_PREFIXES = ["63"];
 
 export function isRemoteArea(zipcode?: string): boolean {
@@ -186,7 +186,7 @@ export async function markDelivered(orderId: number) {
 
 export async function listOrders(opts: { status?: string; q?: string; skip: number; take: number }) {
   const { status, q, skip, take } = opts;
-  const where: Record<string, unknown> = {};
+  const where: Prisma.OrderWhereInput = {};
   if (status) where.status = status;
   if (q) {
     where.OR = [
