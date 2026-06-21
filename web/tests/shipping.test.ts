@@ -183,6 +183,10 @@ describe("markDelivered", () => {
     await prisma.order.update({ where: { id: order.id }, data: { status: "paid" } });
     await expect(markDelivered(order.id)).rejects.toMatchObject({ code: "INVALID_TRANSITION" });
   });
+
+  it("없는 주문 → NOT_FOUND", async () => {
+    await expect(markDelivered(999999)).rejects.toMatchObject({ code: "NOT_FOUND" });
+  });
 });
 
 // ─── listOrders ──────────────────────────────────────────────────
@@ -221,6 +225,33 @@ describe("listOrders", () => {
     await makeOrder(`lst-${Date.now()}-7`);
     const { rows } = await listOrders({ skip: 0, take: 1 });
     expect(rows.length).toBe(1);
+  });
+
+  it("q로 수령인 검색", async () => {
+    const sid = `lst-${Date.now()}-r`;
+    const c = await resolveCustomer(sid);
+    await addItem(c, productId, 1);
+    const order = await placeOrder(c, { recipient: "독특한이름박민준", phone: "010", address: "서울" });
+    const { rows } = await listOrders({ q: "박민준", skip: 0, take: 20 });
+    expect(rows.some((r) => r.id === order.id)).toBe(true);
+  });
+});
+
+// ─── getOrderAdmin ───────────────────────────────────────────────
+describe("getOrderAdmin", () => {
+  it("존재하는 주문 반환", async () => {
+    const c = await resolveCustomer(`goa-${Date.now()}-1`);
+    await addItem(c, productId, 1);
+    const order = await placeOrder(c, SHIP);
+    const found = await getOrderAdmin(order.id);
+    expect(found).not.toBeNull();
+    expect(found!.id).toBe(order.id);
+    expect(Array.isArray(found!.items)).toBe(true);
+  });
+
+  it("없는 주문 → null", async () => {
+    const found = await getOrderAdmin(999999);
+    expect(found).toBeNull();
   });
 });
 
