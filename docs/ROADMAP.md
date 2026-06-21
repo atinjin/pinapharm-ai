@@ -117,10 +117,12 @@ agent/  FastAPI + LangGraph (Claude) 약사 에이전트 (tool-use 루프, Pytho
 - [x] **트랜잭션 재고 차감·복원**(`prisma.$transaction` + 조건부 `updateMany stock gte` → 오버셀 원천 차단, 취소 시 복원).
 - 구현: [spec](superpowers/specs/2026-06-20-commerce-cart-order-design.md) · [plan](superpowers/plans/2026-06-20-commerce-cart-order.md). 할인(`discount`)은 필드만 두고 0(쿠폰은 후속).
 
-#### E3. 배송
+#### E3. 배송 ✅
 
-- [ ] 배송지 입력·관리, 배송비 정책(무료배송 임계·도서산간 추가비)
-- [ ] 택배사 연동/송장번호 등록, 배송 추적·상태 갱신
+- [x] **어드민 발송 처리** — 약사가 어드민 "주문 관리" 탭에서 `paid` 주문에 택배사·송장번호 입력 → `shipped`. "배송완료" 버튼으로 `delivered`. 택배사별 공개 추적 딥링크(키·연동 없음).
+- [x] **도서산간 배송비** — `computeShipping(subtotal, zipcode)` 확장. 제주(63 접두) 자동 감지 → +3,000원 추가(무료 임계 이상도 별도 부과). CartPanel 미리보기에 안내 문구.
+- [x] **주문 상태 머신 확장** — `paid → shipped → delivered`. 취소는 `paid`까지만(shipped·delivered에선 INVALID_TRANSITION). 기존 pending/cancelled/refunded 불변.
+- 구현: [spec](superpowers/specs/2026-06-21-commerce-shipping-design.md) · [plan](superpowers/plans/2026-06-21-commerce-shipping.md). 실 추적 API·고객용 추적 화면은 E4 이후. 도서산간 전수 목록은 E6 운영.
 
 #### E4. 구매자 계정·인증 (어드민 인증 A와 별개)
 
