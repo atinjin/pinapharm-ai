@@ -88,6 +88,10 @@ model Order {
   paymentMethod String?
   paidAt        DateTime?
   pgProvider    String?
+  carrier        String?
+  trackingNumber String?
+  shippedAt      DateTime?
+  deliveredAt    DateTime?
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
 }
