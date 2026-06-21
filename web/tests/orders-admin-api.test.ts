@@ -119,6 +119,18 @@ describe("POST /api/admin/orders/[id]/ship", () => {
     );
     expect(res.status).toBe(400);
   });
+
+  it("알 수 없는 택배사 → 400", async () => {
+    const order = await makeOrderWithStatus(`adm-${Date.now()}-11`, "paid");
+    const res = await ship(
+      post(`http://localhost/api/admin/orders/${order.id}/ship`, {
+        carrier: "FEDEX",
+        trackingNumber: "x",
+      }),
+      ctx(order.id)
+    );
+    expect(res.status).toBe(400);
+  });
 });
 
 describe("POST /api/admin/orders/[id]/deliver", () => {

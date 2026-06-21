@@ -4,7 +4,7 @@ import { markShipped } from "@/lib/orders";
 import { CommerceError, commerceStatus } from "@/lib/commerceErrors";
 
 const schema = z.object({
-  carrier: z.string().min(1),
+  carrier: z.enum(["CJ", "LOTTE", "HANJIN", "POST", "LOGEN"]),
   trackingNumber: z.string().min(1),
 });
 
