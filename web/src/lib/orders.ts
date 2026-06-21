@@ -4,10 +4,19 @@ import { tossConfirm, tossCancel } from "@/lib/payments";
 
 export const SHIPPING_FEE = 3000;
 export const FREE_SHIPPING_OVER = 50000;
+export const REMOTE_AREA_FEE = 3000;
+const REMOTE_ZIP_PREFIXES = ["63"];
 
-export function computeShipping(subtotal: number): number {
+export function isRemoteArea(zipcode?: string): boolean {
+  if (!zipcode) return false;
+  return REMOTE_ZIP_PREFIXES.some((p) => zipcode.startsWith(p));
+}
+
+export function computeShipping(subtotal: number, zipcode?: string): number {
   if (subtotal <= 0) return 0;
-  return subtotal >= FREE_SHIPPING_OVER ? 0 : SHIPPING_FEE;
+  const base = subtotal >= FREE_SHIPPING_OVER ? 0 : SHIPPING_FEE;
+  const remote = isRemoteArea(zipcode) ? REMOTE_AREA_FEE : 0;
+  return base + remote;
 }
 
 export type ShippingInput = {
@@ -44,7 +53,7 @@ export async function placeOrder(customerId: number, shipping: ShippingInput) {
     }
 
     const subtotal = items.reduce((s, it) => s + it.product.price * it.quantity, 0);
-    const shippingFee = computeShipping(subtotal);
+    const shippingFee = computeShipping(subtotal, shipping.zipcode);
     const total = subtotal + shippingFee;
 
     const order = await tx.order.create({
@@ -124,4 +133,74 @@ export async function reconcileFromToss(orderNumber: string, payment: { status: 
       await tx.order.update({ where: { id: order.id }, data: { status: "refunded" } });
     });
   }
+}
+
+const TRACKING_URL_TEMPLATES: Record<string, string> = {
+  CJ: "https://www.cjlogistics.com/ko/tool/parcel/tracking?gnbInvcNo={no}",
+  LOTTE: "https://www.lotteglogis.com/home/reservation/tracking/linkView?InvNo={no}",
+  HANJIN: "https://www.hanjin.com/kor/CMS/DeliveryMgr/WaybillSch.do?mCode=MN038&schLang=KOR&wblnumText2={no}",
+  POST: "https://service.epost.go.kr/trace.RetrieveEmsRigiTraceList.comm?POST_CODE={no}",
+  LOGEN: "https://www.ilogen.com/web/personal/trace/{no}",
+};
+
+export const TRACKING_CARRIERS: Record<string, string> = {
+  CJ: "CJ대한통운",
+  LOTTE: "롯데택배",
+  HANJIN: "한진택배",
+  POST: "우체국택배",
+  LOGEN: "로젠택배",
+};
+
+export function trackingUrl(carrier: string, trackingNumber: string): string | null {
+  const tmpl = TRACKING_URL_TEMPLATES[carrier];
+  if (!tmpl) return null;
+  return tmpl.replace("{no}", encodeURIComponent(trackingNumber));
+}
+
+export async function markShipped(
+  orderId: number,
+  data: { carrier: string; trackingNumber: string }
+) {
+  const order = await prisma.order.findUnique({ where: { id: orderId } });
+  if (!order) throw new CommerceError("NOT_FOUND", "주문을 찾을 수 없습니다.");
+  if (order.status !== "paid")
+    throw new CommerceError("INVALID_TRANSITION", `발송 처리할 수 없는 상태입니다: ${order.status}`);
+  return prisma.order.update({
+    where: { id: orderId },
+    data: { status: "shipped", carrier: data.carrier, trackingNumber: data.trackingNumber, shippedAt: new Date() },
+    include: { items: true },
+  });
+}
+
+export async function markDelivered(orderId: number) {
+  const order = await prisma.order.findUnique({ where: { id: orderId } });
+  if (!order) throw new CommerceError("NOT_FOUND", "주문을 찾을 수 없습니다.");
+  if (order.status !== "shipped")
+    throw new CommerceError("INVALID_TRANSITION", `배송완료 처리할 수 없는 상태입니다: ${order.status}`);
+  return prisma.order.update({
+    where: { id: orderId },
+    data: { status: "delivered", deliveredAt: new Date() },
+    include: { items: true },
+  });
+}
+
+export async function listOrders(opts: { status?: string; q?: string; skip: number; take: number }) {
+  const { status, q, skip, take } = opts;
+  const where: Record<string, unknown> = {};
+  if (status) where.status = status;
+  if (q) {
+    where.OR = [
+      { orderNumber: { contains: q } },
+      { recipient: { contains: q } },
+    ];
+  }
+  const [rows, total] = await prisma.$transaction([
+    prisma.order.findMany({ where, skip, take, orderBy: { createdAt: "desc" }, include: { items: true } }),
+    prisma.order.count({ where }),
+  ]);
+  return { rows, total };
+}
+
+export async function getOrderAdmin(id: number) {
+  return prisma.order.findUnique({ where: { id }, include: { items: true } });
 }
