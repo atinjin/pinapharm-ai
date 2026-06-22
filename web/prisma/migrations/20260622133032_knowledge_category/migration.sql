@@ -18,5 +18,5 @@ INSERT OR IGNORE INTO "KnowledgeCategory" ("name", "displayOrder", "createdAt", 
 SELECT DISTINCT category, 0, datetime('now'), datetime('now') FROM "KnowledgeDocument";
 
 -- 보호 카테고리 미분류 시드
-INSERT INTO "KnowledgeCategory" ("name", "displayOrder", "createdAt", "updatedAt")
+INSERT OR IGNORE INTO "KnowledgeCategory" ("name", "displayOrder", "createdAt", "updatedAt")
 VALUES ('미분류', 9999, datetime('now'), datetime('now'));
