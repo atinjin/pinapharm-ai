@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 export type CategoryRow = {
   id: number;
@@ -10,6 +10,72 @@ export type CategoryRow = {
   displayOrder: number;
   docCount: number;
 };
+
+const PRESET_ICONS = [
+  "💊", "💉", "🩺", "🌿", "🔬", "🧪", "🧬", "📋",
+  "📖", "🌱", "🧠", "❤️", "⚠️", "⭐", "🏥", "💡",
+];
+
+function EmojiInput({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const wrapRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function onPointerDown(e: PointerEvent) {
+      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener("pointerdown", onPointerDown);
+    return () => document.removeEventListener("pointerdown", onPointerDown);
+  }, []);
+
+  return (
+    <div ref={wrapRef} className="relative">
+      <input
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        onFocus={() => setOpen(true)}
+        placeholder="이모지 선택 또는 입력"
+        maxLength={2}
+        className={field}
+      />
+      {open && (
+        <div className="absolute left-0 right-0 top-full z-20 mt-1 rounded-xl border border-slate-200 bg-white p-2 shadow-lg">
+          <div className="flex flex-wrap gap-1">
+            {PRESET_ICONS.map((em) => (
+              <button
+                key={em}
+                type="button"
+                onPointerDown={(e) => {
+                  e.preventDefault();
+                  onChange(em);
+                  setOpen(false);
+                }}
+                className={`rounded-lg px-1.5 py-0.5 text-[18px] leading-none transition hover:bg-slate-100 ${
+                  value === em ? "bg-slate-100 ring-1 ring-slate-300" : ""
+                }`}
+              >
+                {em}
+              </button>
+            ))}
+          </div>
+          {value && !PRESET_ICONS.includes(value) && (
+            <p className="mt-1.5 text-[11px] text-slate-400">
+              직접 입력: <span className="text-[15px]">{value}</span>
+            </p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 const CATEGORY_COLORS = [
   { label: "없음", value: "" },
@@ -150,12 +216,9 @@ export function AdminCategoryManager({ onChanged }: { onChanged?: () => void }) 
                       disabled={isProtected}
                       className={field}
                     />
-                    <input
+                    <EmojiInput
                       value={editForm.icon}
-                      onChange={(e) => setEditForm((f) => ({ ...f, icon: e.target.value }))}
-                      placeholder="이모지 (예: 💊)"
-                      maxLength={2}
-                      className={field}
+                      onChange={(v) => setEditForm((f) => ({ ...f, icon: v }))}
                     />
                   </div>
                   <input
@@ -287,12 +350,9 @@ export function AdminCategoryManager({ onChanged }: { onChanged?: () => void }) 
               placeholder="이름 *"
               className={field}
             />
-            <input
+            <EmojiInput
               value={newForm.icon}
-              onChange={(e) => setNewForm((f) => ({ ...f, icon: e.target.value }))}
-              placeholder="이모지 (예: 💊)"
-              maxLength={2}
-              className={field}
+              onChange={(v) => setNewForm((f) => ({ ...f, icon: v }))}
             />
           </div>
           <input
