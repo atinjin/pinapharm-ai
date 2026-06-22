@@ -228,22 +228,27 @@ export function AdminCategoryManager({ onChanged }: { onChanged?: () => void }) 
                     className={field}
                   />
                   <div className="grid grid-cols-2 gap-2">
-                    <select
-                      value={editForm.color}
-                      onChange={(e) => setEditForm((f) => ({ ...f, color: e.target.value }))}
-                      className={field}
-                    >
-                      {CATEGORY_COLORS.map((c) => (
-                        <option key={c.value} value={c.value}>{c.label}</option>
-                      ))}
-                    </select>
-                    <input
-                      type="number"
-                      value={editForm.displayOrder}
-                      onChange={(e) => setEditForm((f) => ({ ...f, displayOrder: e.target.value }))}
-                      placeholder="정렬 순서"
-                      className={field}
-                    />
+                    <label className="grid gap-1">
+                      <span className="px-1 text-[11px] font-medium text-slate-400">배지 색상</span>
+                      <select
+                        value={editForm.color}
+                        onChange={(e) => setEditForm((f) => ({ ...f, color: e.target.value }))}
+                        className={field}
+                      >
+                        {CATEGORY_COLORS.map((c) => (
+                          <option key={c.value} value={c.value}>{c.label}</option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="grid gap-1">
+                      <span className="px-1 text-[11px] font-medium text-slate-400">정렬 순서 (낮을수록 앞)</span>
+                      <input
+                        type="number"
+                        value={editForm.displayOrder}
+                        onChange={(e) => setEditForm((f) => ({ ...f, displayOrder: e.target.value }))}
+                        className={field}
+                      />
+                    </label>
                   </div>
                   {editForm.color && (
                     <span className={`inline-flex w-fit items-center gap-1 rounded-full px-2.5 py-0.5 text-[12px] font-semibold ${editForm.color}`}>
@@ -362,22 +367,27 @@ export function AdminCategoryManager({ onChanged }: { onChanged?: () => void }) 
             className={field}
           />
           <div className="grid grid-cols-2 gap-2">
-            <select
-              value={newForm.color}
-              onChange={(e) => setNewForm((f) => ({ ...f, color: e.target.value }))}
-              className={field}
-            >
-              {CATEGORY_COLORS.map((c) => (
-                <option key={c.value} value={c.value}>{c.label}</option>
-              ))}
-            </select>
-            <input
-              type="number"
-              value={newForm.displayOrder}
-              onChange={(e) => setNewForm((f) => ({ ...f, displayOrder: e.target.value }))}
-              placeholder="정렬 순서"
-              className={field}
-            />
+            <label className="grid gap-1">
+              <span className="px-1 text-[11px] font-medium text-slate-400">배지 색상</span>
+              <select
+                value={newForm.color}
+                onChange={(e) => setNewForm((f) => ({ ...f, color: e.target.value }))}
+                className={field}
+              >
+                {CATEGORY_COLORS.map((c) => (
+                  <option key={c.value} value={c.value}>{c.label}</option>
+                ))}
+              </select>
+            </label>
+            <label className="grid gap-1">
+              <span className="px-1 text-[11px] font-medium text-slate-400">정렬 순서 (낮을수록 앞)</span>
+              <input
+                type="number"
+                value={newForm.displayOrder}
+                onChange={(e) => setNewForm((f) => ({ ...f, displayOrder: e.target.value }))}
+                className={field}
+              />
+            </label>
           </div>
           {newForm.color && newForm.name && (
             <span className={`inline-flex w-fit items-center gap-1 rounded-full px-2.5 py-0.5 text-[12px] font-semibold ${newForm.color}`}>
