@@ -4,6 +4,7 @@ import { Modal } from "@/components/Modal";
 import { AdminKnowledgeForm, type DocInitial } from "@/components/AdminKnowledgeForm";
 import { AdminKnowledgeItem, type KnowledgeDocRow } from "@/components/AdminKnowledgeItem";
 import { AdminKnowledgeSearchTest } from "@/components/AdminKnowledgeSearchTest";
+import { AdminCategoryManager } from "@/components/AdminCategoryManager";
 
 export default function AdminKnowledgePage() {
   const [rows, setRows] = useState<KnowledgeDocRow[]>([]);
@@ -13,6 +14,8 @@ export default function AdminKnowledgePage() {
   const [category, setCategory] = useState("");
   const [reviewed, setReviewed] = useState("");
   const [q, setQ] = useState("");
+  const [catOptions, setCatOptions] = useState<{ id: number; name: string; icon: string | null }[]>([]);
+  const [catMgrOpen, setCatMgrOpen] = useState(false);
 
   const [formOpen, setFormOpen] = useState(false);
   const [editDoc, setEditDoc] = useState<DocInitial | null>(null);
@@ -35,6 +38,14 @@ export default function AdminKnowledgePage() {
   useEffect(() => {
     load();
   }, [load]);
+
+  const loadCats = useCallback(async () => {
+    const res = await fetch("/api/admin/knowledge-categories");
+    const data = await res.json();
+    setCatOptions(data.rows ?? []);
+  }, []);
+
+  useEffect(() => { loadCats(); }, [loadCats]);
 
   useEffect(() => {
     setPage(1);
@@ -70,9 +81,19 @@ export default function AdminKnowledgePage() {
         >
           + 지식 문서 추가
         </button>
+        <button
+          onClick={() => setCatMgrOpen(true)}
+          className="glass rounded-full px-5 py-2.5 text-sm font-medium text-slate-600 transition hover:-translate-y-0.5 hover:bg-white/70"
+        >
+          카테고리 관리
+        </button>
       </div>
 
       <AdminKnowledgeForm open={formOpen} initial={editDoc} onClose={() => setFormOpen(false)} onSaved={load} />
+
+      <Modal open={catMgrOpen} title="카테고리 관리" onClose={() => setCatMgrOpen(false)}>
+        <AdminCategoryManager onChanged={() => { loadCats(); load(); }} />
+      </Modal>
 
       <Modal open={!!pendingDelete} title="지식 문서 삭제 확인" onClose={() => !deleting && setPendingDelete(null)}>
         {pendingDelete && (
@@ -90,7 +111,19 @@ export default function AdminKnowledgePage() {
 
       <div className="mb-3 flex flex-col gap-2 sm:flex-row">
         <input placeholder="제목·본문 검색" value={q} onChange={(e) => setQ(e.target.value)} className={field} />
-        <input placeholder="카테고리" value={category} onChange={(e) => setCategory(e.target.value)} className={`${field} sm:w-40`} />
+        <select
+          value={category}
+          onChange={(e) => setCategory(e.target.value)}
+          className={`${field} sm:w-48`}
+          aria-label="카테고리"
+        >
+          <option value="">전체 카테고리</option>
+          {catOptions.map((c) => (
+            <option key={c.id} value={c.name}>
+              {c.icon ? `${c.icon} ` : ""}{c.name}
+            </option>
+          ))}
+        </select>
         <select value={reviewed} onChange={(e) => setReviewed(e.target.value)} className={`${field} sm:w-40`} aria-label="검수 상태">
           <option value="">전체</option>
           <option value="false">검수 필요</option>

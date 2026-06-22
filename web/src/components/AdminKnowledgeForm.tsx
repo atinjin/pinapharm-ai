@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Modal } from "@/components/Modal";
 import { MarkdownPreview } from "@/components/MarkdownPreview";
 
@@ -23,6 +23,7 @@ export function AdminKnowledgeForm({
   onSaved: () => void;
 }) {
   const editing = !!initial;
+  const [catOptions, setCatOptions] = useState<{ id: number; name: string; icon: string | null }[]>([]);
   const [category, setCategory] = useState(initial?.category ?? "reference");
   const [title, setTitle] = useState(initial?.title ?? "");
   const [body, setBody] = useState(initial?.body ?? "");
@@ -32,6 +33,13 @@ export function AdminKnowledgeForm({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [preview, setPreview] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/admin/knowledge-categories")
+      .then((r) => r.json())
+      .then((d) => setCatOptions(d.rows ?? []))
+      .catch(() => {});
+  }, []);
 
   // 수정 모달이 다른 문서로 다시 열릴 때 초기값 동기화
   const [seededId, setSeededId] = useState(initial?.id ?? 0);
@@ -79,7 +87,22 @@ export function AdminKnowledgeForm({
     <Modal open={open} title={editing ? "지식 문서 수정" : "지식 문서 추가"} onClose={onClose}>
       <form onSubmit={submit} className="grid gap-3">
         <div className="grid gap-3 sm:grid-cols-2">
-          <input placeholder="카테고리 (예: reference, ingredient, note)" value={category} onChange={(e) => setCategory(e.target.value)} className={field} />
+          {catOptions.length > 0 ? (
+            <select value={category} onChange={(e) => setCategory(e.target.value)} className={field}>
+              {catOptions.map((c) => (
+                <option key={c.id} value={c.name}>
+                  {c.icon ? `${c.icon} ` : ""}{c.name}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <input
+              placeholder="카테고리"
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+              className={field}
+            />
+          )}
           <input placeholder="출처 (URL·저자·메모)" value={source} onChange={(e) => setSource(e.target.value)} className={field} />
         </div>
         <input required placeholder="제목" value={title} onChange={(e) => setTitle(e.target.value)} className={field} />
