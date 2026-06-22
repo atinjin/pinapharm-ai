@@ -37,6 +37,8 @@ export function AdminCategoryManager({ onChanged }: { onChanged?: () => void }) 
     name: "", description: "", icon: "", color: "", displayOrder: "0",
   });
   const [newError, setNewError] = useState("");
+  const [editError, setEditError] = useState("");
+  const [deleteError, setDeleteError] = useState("");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -50,6 +52,7 @@ export function AdminCategoryManager({ onChanged }: { onChanged?: () => void }) 
 
   function startEdit(row: CategoryRow) {
     setEditingId(row.id);
+    setEditError("");
     setEditForm({
       name: row.name,
       description: row.description ?? "",
@@ -62,7 +65,7 @@ export function AdminCategoryManager({ onChanged }: { onChanged?: () => void }) 
 
   async function saveEdit(id: number) {
     setBusy(true);
-    await fetch(`/api/admin/knowledge-categories/${id}`, {
+    const res = await fetch(`/api/admin/knowledge-categories/${id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -74,6 +77,11 @@ export function AdminCategoryManager({ onChanged }: { onChanged?: () => void }) 
       }),
     });
     setBusy(false);
+    if (!res.ok) {
+      const d = await res.json();
+      setEditError(d.error ?? "저장 실패");
+      return;
+    }
     setEditingId(null);
     await load();
     onChanged?.();
@@ -81,8 +89,13 @@ export function AdminCategoryManager({ onChanged }: { onChanged?: () => void }) 
 
   async function confirmDelete(id: number) {
     setBusy(true);
-    await fetch(`/api/admin/knowledge-categories/${id}`, { method: "DELETE" });
+    const res = await fetch(`/api/admin/knowledge-categories/${id}`, { method: "DELETE" });
     setBusy(false);
+    if (!res.ok) {
+      const d = await res.json();
+      setDeleteError(d.error ?? "삭제 실패");
+      return;
+    }
     setDeletingId(null);
     await load();
     onChanged?.();
@@ -174,6 +187,7 @@ export function AdminCategoryManager({ onChanged }: { onChanged?: () => void }) 
                       {editForm.icon} {editForm.name || "미리보기"}
                     </span>
                   )}
+                  {editError && <p className="text-[12px] text-rose-500">{editError}</p>}
                   <div className="flex justify-end gap-2">
                     <button
                       onClick={() => setEditingId(null)}
@@ -203,6 +217,7 @@ export function AdminCategoryManager({ onChanged }: { onChanged?: () => void }) 
                       &apos;{row.name}&apos; 카테고리를 삭제하시겠습니까?
                     </p>
                   )}
+                  {deleteError && <p className="mb-2 text-[12px] text-rose-500">{deleteError}</p>}
                   <div className="flex justify-end gap-2">
                     <button
                       onClick={() => setDeletingId(null)}
@@ -246,7 +261,7 @@ export function AdminCategoryManager({ onChanged }: { onChanged?: () => void }) 
                       수정
                     </button>
                     <button
-                      onClick={() => { if (!isProtected) setDeletingId(row.id); }}
+                      onClick={async () => { if (!isProtected) { setDeleteError(""); await load(); setDeletingId(row.id); } }}
                       disabled={isProtected}
                       title={isProtected ? "시스템 카테고리는 삭제할 수 없습니다" : undefined}
                       className="rounded-full border border-slate-200 px-2.5 py-1 text-[12px] text-rose-500 hover:bg-rose-50 disabled:opacity-30 disabled:cursor-not-allowed"
