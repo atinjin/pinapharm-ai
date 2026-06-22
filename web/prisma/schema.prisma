@@ -177,6 +177,17 @@ model ConsultationSkill {
   updatedAt   DateTime @updatedAt
 }
 
+model KnowledgeCategory {
+  id           Int      @id @default(autoincrement())
+  name         String   @unique
+  description  String?
+  icon         String?
+  color        String?
+  displayOrder Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
 model KnowledgeDocument {
   id         Int              @id @default(autoincrement())
   category   String           @default("general") // ingredient | reference | note 등
