@@ -20,6 +20,7 @@ def _model(calls):
 async def test_stream_events_emits_recommendations_and_done():
     fake_model = _model([
         _ai(tool_calls=[{"name": "search_products", "args": {"condition": "피로"}, "id": "t1", "type": "tool_call"}]),
+        _ai(tool_calls=[{"name": "recommend_products", "args": {"product_ids": [1]}, "id": "r1", "type": "tool_call"}]),
         _ai(text="비타민C를 추천드려요."),
     ])
     with patch("app.triage.classify", new=AsyncMock(return_value="normal")), \
@@ -33,6 +34,24 @@ async def test_stream_events_emits_recommendations_and_done():
     assert types[-1] == "done"
     rec = json.loads(next(e["data"] for e in events if e["event"] == "recommendations"))
     assert rec["ids"] == [1]
+
+
+async def test_stream_events_resets_seen_products_each_turn():
+    # 이전 턴에 검색한 제품은 다음 턴에 검색 없이 카드로 보낼 수 없다
+    fake_model = _model([
+        _ai(tool_calls=[{"name": "search_products", "args": {}, "id": "t1", "type": "tool_call"}]),
+        _ai(text="찾아봤어요."),
+        _ai(tool_calls=[{"name": "recommend_products", "args": {"product_ids": [1]}, "id": "r1", "type": "tool_call"}]),
+        _ai(text="권해요."),
+    ])
+    with patch("app.triage.classify", new=AsyncMock(return_value="normal")), \
+         patch("app.graph.make_plan", new=AsyncMock(return_value=[])), \
+         patch("app.graph._chat_model", return_value=fake_model), \
+         patch("app.graph._fetch_products", new=AsyncMock(return_value=[{"id": 1, "name": "비타민C"}])):
+        graph = build_graph(MemorySaver())
+        first = [e async for e in stream_events(graph, "피곤해요", "sSeen")]
+        second = [e async for e in stream_events(graph, "그걸로 할게요", "sSeen")]
+    assert not any(e["event"] == "recommendations" for e in first + second)
 
 
 async def test_stream_events_emergency():
