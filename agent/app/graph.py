@@ -4,7 +4,7 @@ from typing import Annotated, Literal, TypedDict
 
 from langchain_anthropic import ChatAnthropic
 from langchain_anthropic.chat_models import convert_to_anthropic_tool
-from langchain_core.messages import AIMessage, AnyMessage, SystemMessage, ToolMessage
+from langchain_core.messages import AIMessage, AnyMessage, BaseMessage, SystemMessage, ToolMessage
 from langchain_core.runnables import RunnableConfig
 from langgraph.config import get_stream_writer
 from langgraph.graph import START, END, StateGraph
@@ -80,6 +80,46 @@ def _plan_checklist(state: AgentState) -> str:
     return "\n".join(lines)
 
 
+def _llm_view(messages: list[BaseMessage]) -> list[BaseMessage]:
+    """모델에 보낼 이력 사본. 뒤에 ToolMessage가 없는 tool_use는 tool_calls와 content 블록 모두에서 뺀다.
+
+    langchain-anthropic은 content의 tool_use 블록을 tool_calls와 무관하게 내보내므로 둘 다 지워야 한다.
+    체크포인트 원본은 수정하지 않는다.
+    """
+    answered: set[str] = set()
+    view: list[BaseMessage] = []
+    for m in reversed(messages):
+        if isinstance(m, ToolMessage):
+            answered.add(m.tool_call_id)
+        elif isinstance(m, AIMessage):
+            m = _strip_unanswered(m, answered)
+            if m is None:
+                continue
+        view.append(m)
+    view.reverse()
+    return view
+
+
+def _strip_unanswered(m: AIMessage, answered: set[str]) -> AIMessage | None:
+    blocks = m.content if isinstance(m.content, list) else []
+    call_ids = {c["id"] for c in m.tool_calls} | {
+        b["id"] for b in blocks if isinstance(b, dict) and b.get("type") == "tool_use"
+    }
+    if call_ids <= answered:
+        return m
+    tool_calls = [c for c in m.tool_calls if c["id"] in answered]
+    content = m.content
+    if isinstance(content, list):
+        content = [
+            b for b in content
+            if not (isinstance(b, dict) and b.get("type") == "tool_use" and b.get("id") not in answered)
+        ]
+    if not content and not tool_calls:
+        # 빈 assistant 메시지는 API가 거절하므로 통째로 뺀다
+        return None
+    return m.model_copy(update={"content": content, "tool_calls": tool_calls})
+
+
 async def agent_node(state: AgentState) -> dict:
     cfg = await get_config()
     model = _chat_model().bind_tools(AGENT_TOOLS)
@@ -87,7 +127,7 @@ async def agent_node(state: AgentState) -> dict:
     checklist = _plan_checklist(state)
     if checklist:
         system = f"{system}\n\n{checklist}"
-    resp = await model.ainvoke([SystemMessage(content=system)] + state["messages"])
+    resp = await model.ainvoke([SystemMessage(content=system)] + _llm_view(state["messages"]))
     return {"messages": [resp]}
 
 
@@ -158,7 +198,7 @@ async def finalize_node(state: AgentState) -> dict:
         system = f"{system}\n\n{checklist}"
     # 이력에 tool 블록이 있으므로 도구 정의는 넘기되, tool_choice none으로 호출은 막는다
     resp = await _chat_model().ainvoke(
-        [SystemMessage(content=system)] + state["messages"],
+        [SystemMessage(content=system)] + _llm_view(state["messages"]),
         tools=_finalize_tools(),
         tool_choice={"type": "none"},
     )

@@ -73,6 +73,68 @@ async def test_agent_node_binds_agent_tools():
     assert m.bind_tools.call_args.args[0] == graph.AGENT_TOOLS
 
 
+def _tool_use_block(id_="t1"):
+    return {"type": "tool_use", "id": id_, "name": "search_products", "input": {"condition": "피로"}}
+
+
+def test_llm_view_strips_unpaired_tool_use_from_calls_and_content():
+    ai = AIMessage(content=[{"type": "text", "text": "찾아볼게요"}, _tool_use_block("t1")], tool_calls=[_call("t1")])
+    msgs = [HumanMessage(content="q1"), ai, HumanMessage(content="q2")]
+    view = graph._llm_view(msgs)
+    assert len(view) == 3
+    assert view[1].tool_calls == []
+    assert view[1].content == [{"type": "text", "text": "찾아볼게요"}]
+    # 체크포인트 원본은 그대로
+    assert ai.tool_calls and len(ai.content) == 2
+
+
+def test_llm_view_keeps_paired_tool_use():
+    ai = AIMessage(content=[_tool_use_block("t1")], tool_calls=[_call("t1")])
+    tm = ToolMessage(content="[]", tool_call_id="t1", name="search_products")
+    msgs = [HumanMessage(content="q"), ai, tm, AIMessage(content="답")]
+    assert graph._llm_view(msgs) == msgs
+
+
+def test_llm_view_strips_only_unpaired_calls_of_partial_pair():
+    ai = AIMessage(content=[_tool_use_block("t1"), _tool_use_block("t2")], tool_calls=[_call("t1"), _call("t2")])
+    tm = ToolMessage(content="[]", tool_call_id="t1", name="search_products")
+    view = graph._llm_view([HumanMessage(content="q"), ai, tm])
+    assert [c["id"] for c in view[1].tool_calls] == ["t1"]
+    assert [b["id"] for b in view[1].content] == ["t1"]
+
+
+def test_llm_view_drops_message_left_empty():
+    # 내용 없이 tool_use만 있던 메시지는 빈 assistant 메시지가 되므로 통째로 뺀다
+    ai = AIMessage(content="", tool_calls=[_call("t1")])
+    view = graph._llm_view([HumanMessage(content="q1"), ai, HumanMessage(content="q2")])
+    assert [m.type for m in view] == ["human", "human"]
+
+
+async def test_agent_node_recovers_polluted_thread():
+    # 이전 버전 finalize 실패로 짝 없는 tool_use가 남은 체크포인트에서도 요청에는 실리지 않는다
+    polluted = AIMessage(content=[_tool_use_block("t1")], tool_calls=[_call("t1")])
+    m = AsyncMock()
+    m.ainvoke = AsyncMock(return_value=AIMessage(content="네."))
+    m.bind_tools = MagicMock(return_value=m)
+    with patch("app.graph.get_config", new=AsyncMock(return_value={})), \
+         patch("app.graph.build_system_prompt", return_value="SYS"), \
+         patch("app.graph._chat_model", return_value=m):
+        await graph.agent_node(_state([HumanMessage(content="q1"), polluted, HumanMessage(content="q2")]))
+    sent = m.ainvoke.await_args.args[0]
+    assert not any(getattr(x, "tool_calls", None) for x in sent)
+
+
+async def test_finalize_node_uses_llm_view():
+    polluted = AIMessage(content="", tool_calls=[_call("old")])
+    st = _state([HumanMessage(content="q1"), polluted, HumanMessage(content="q2"),
+                 AIMessage(content="", tool_calls=[_call("t1")]),
+                 ToolMessage(content="[]", tool_call_id="t1", name="search_products")])
+    bare, _ = await _run_finalize(st)
+    sent = bare.ainvoke.await_args.args[0]
+    ids = [c["id"] for x in sent for c in (getattr(x, "tool_calls", None) or [])]
+    assert ids == ["t1"]
+
+
 async def test_turn_limit_finalize_sees_paired_history():
     # 한도 턴: agent 4회 → tools 4회 → finalize 1회. finalize 요청에 짝 없는 tool_use가 없어야 한다.
     bound = AsyncMock()
