@@ -3,6 +3,7 @@ import os
 from langchain_anthropic import ChatAnthropic
 from langchain_core.messages import SystemMessage, HumanMessage
 
+from app import llm
 from app.config_client import get_config
 from app.prompts import TRIAGE_SYSTEM
 
@@ -12,7 +13,7 @@ TRIAGE_MODEL = os.environ.get("TRIAGE_MODEL", "claude-haiku-4-5-20251001")
 
 
 def _model() -> ChatAnthropic:
-    return ChatAnthropic(model=TRIAGE_MODEL, max_tokens=10, temperature=0)
+    return llm.chat_model(TRIAGE_MODEL, max_tokens=10, temperature=0)
 
 
 async def classify(message: str) -> str:

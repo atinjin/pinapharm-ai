@@ -10,7 +10,7 @@ from langgraph.config import get_stream_writer
 from langgraph.graph import START, END, StateGraph
 from langgraph.graph.message import add_messages
 
-from app import triage
+from app import llm, triage
 from app.planner import make_plan
 from app.prompts import EMERGENCY_MESSAGE
 from app.config_client import get_config, build_system_prompt, fetch_skill_body
@@ -41,7 +41,7 @@ class AgentState(TypedDict):
 
 
 def _chat_model() -> ChatAnthropic:
-    return ChatAnthropic(model=MODEL, max_tokens=1024)
+    return llm.chat_model(MODEL, max_tokens=1024)
 
 
 def _last_human_text(state: AgentState) -> str:

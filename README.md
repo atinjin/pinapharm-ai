@@ -100,11 +100,12 @@ npm run dev                        # http://localhost:3000
 cd agent
 python3.13 -m venv .venv && . .venv/bin/activate
 pip install -e ".[dev]"
-cp -n .env.example .env             # ANTHROPIC_API_KEY 를 실제 값으로
+cp -n .env.example .env             # OPENROUTER_API_KEY 를 실제 값으로
 uvicorn app.main:app --reload --port 8000
 ```
 
-> `ANTHROPIC_API_KEY`가 없으면 채팅은 "상담 처리 중 오류" 메시지로 우아하게 실패합니다(배선은 정상).
+> LLM 호출은 기본적으로 OpenRouter(Anthropic 호환 입력, Anthropic 1P 제공자 고정)를 거칩니다. Anthropic API를 직접 쓰려면 `LLM_PROVIDER=anthropic`과 `ANTHROPIC_API_KEY`를 설정합니다.
+> 키가 없으면 채팅은 "상담 처리 중 오류" 메시지로 우아하게 실패합니다(배선은 정상).
 
 ## 🔎 RAG 색인 (선택)
 
@@ -139,7 +140,7 @@ cd web && npm test                            # 도메인/CRUD/RAG 테스트 (vi
 cd agent && . .venv/bin/activate && pytest     # 도구/그래프/에이전트 루프 (28)
 ```
 
-> 상담 안전·행동 회귀 평가: `make eval`(실제 그래프 — `ANTHROPIC_API_KEY` + web(:3000) 필요). 응급 분기·도구 호출·추천 유무를 결정적으로 검증하고, 안전 시나리오 실패 시 비정상 종료합니다.
+> 상담 안전·행동 회귀 평가: `make eval`(실제 그래프 — `OPENROUTER_API_KEY`(또는 `LLM_PROVIDER=anthropic` + `ANTHROPIC_API_KEY`) + web(:3000) 필요). 응급 분기·도구 호출·추천 유무를 결정적으로 검증하고, 안전 시나리오 실패 시 비정상 종료합니다.
 
 ## 🗺️ 로드맵
 
