@@ -52,6 +52,28 @@ async def test_finalize_passes_agent_tools_with_tool_choice_none():
     assert out["messages"][0].content == "정리했어요."
 
 
+async def test_finalize_system_ends_with_wrapup_instruction():
+    # 도구를 더 못 쓰는 턴이므로 추가 확인을 약속하지 말고 마무리하라는 지시가 system 끝에 붙는다
+    st = _state([HumanMessage(content="q")])
+    st["plan"] = [{"title": "제품 검색", "tool": "search_products"}]
+    bare, _ = await _run_finalize(st)
+    system = bare.ainvoke.await_args.args[0][0].content
+    assert isinstance(system, str)
+    assert system.startswith("SYS\n\n## 상담 계획")
+    assert system.endswith(graph.FINALIZE_INSTRUCTION)
+
+
+async def test_agent_system_has_no_wrapup_instruction():
+    m = AsyncMock()
+    m.ainvoke = AsyncMock(return_value=AIMessage(content="네."))
+    m.bind_tools = MagicMock(return_value=m)
+    with patch("app.graph.get_config", new=AsyncMock(return_value={})), \
+         patch("app.graph.build_system_prompt", return_value="SYS"), \
+         patch("app.graph._chat_model", return_value=m):
+        await graph.agent_node(_state([HumanMessage(content="q")]))
+    assert graph.FINALIZE_INSTRUCTION not in m.ainvoke.await_args.args[0][0].content
+
+
 def test_finalize_tools_match_bind_tools_payload():
     # agent 경로(bind_tools)가 요청에 싣는 tools와 finalize가 넘기는 tools가 같아야 캐시 프리픽스가 맞는다
     import json
