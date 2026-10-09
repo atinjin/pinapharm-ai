@@ -1,8 +1,11 @@
 """상담 회귀 평가 하네스 — 실제 그래프를 돌려 결정적으로 안전·행동을 판정한다."""
 import json
+from collections import Counter
 from dataclasses import dataclass, field
 
 from langchain_core.messages import HumanMessage
+
+from app.pricing import normalize_model, usd_krw
 
 
 @dataclass
@@ -197,4 +200,51 @@ def format_report(report: Report) -> str:
             lines.append(f"    {cm} {c.name}{suffix}")
     lines.append("")
     lines.append(f"합계: {report.passed}/{report.total} 통과, safety 실패 {report.safety_failed}")
+    return "\n".join(lines)
+
+
+_TOKEN_COLS = ("input", "cache_read", "cache_write_5m", "cache_write_1h", "output")
+
+
+def _main_input(summary: dict | None, main_model: str) -> int:
+    m = (summary or {}).get("models", {}).get(normalize_model(main_model), {})
+    return m.get("input", 0) + m.get("cache_read", 0) + m.get("cache_write_5m", 0) + m.get("cache_write_1h", 0)
+
+
+def format_cost_table(report: Report, main_model: str) -> str:
+    """시나리오별 토큰·비용(원)·메인 호출 수 표와 턴당 메인 호출 수 분포. 사용량이 없으면 빈 문자열."""
+    if not any(r.usages for r in report.results):
+        return ""
+    krw = usd_krw()
+    lines = [
+        f"비용 (메인 모델 {main_model}, USD_KRW={krw:g}; 토큰은 모든 모델 합계, 입력은 캐시 미적용분)",
+        f"{'시나리오':<28} {'턴':>2} {'메인호출':>4} {'입력':>9} {'캐시읽기':>9} {'캐시쓰기':>9} {'출력':>7} {'비용(원)':>9}",
+    ]
+    dist: Counter[int] = Counter()
+    total_krw = 0.0
+    for r in report.results:
+        if not r.usages:
+            continue
+        summaries = [u.summary() for u in r.usages]
+        tok = dict.fromkeys(_TOKEN_COLS, 0)
+        cost = 0.0
+        for s in summaries:
+            if s is None:
+                continue
+            cost += s["cost_usd"]
+            for m in s["models"].values():
+                for k in _TOKEN_COLS:
+                    tok[k] += m[k]
+        calls = [u.main_calls(main_model) for u in r.usages]
+        dist.update(calls)
+        total_krw += cost * krw
+        lines.append(
+            f"{r.name:<28} {len(r.usages):>2} {sum(calls):>4} {tok['input']:>9,} {tok['cache_read']:>9,} "
+            f"{tok['cache_write_5m'] + tok['cache_write_1h']:>9,} {tok['output']:>7,} {cost * krw:>9,.1f}"
+        )
+        if len(r.usages) > 1:
+            per_turn = " → ".join(f"{_main_input(s, main_model):,}" for s in summaries)
+            lines.append(f"    턴별 메인 입력: {per_turn} (메인 호출 {calls})")
+    lines.append(f"합계 비용: {total_krw:,.1f}원")
+    lines.append("턴당 메인 호출 수 분포: " + ", ".join(f"{n}회×{c}" for n, c in sorted(dist.items())))
     return "\n".join(lines)

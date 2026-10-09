@@ -140,7 +140,7 @@ cd web && npm test                            # 도메인/CRUD/RAG 테스트 (vi
 cd agent && . .venv/bin/activate && pytest     # 도구/그래프/에이전트 루프 (28)
 ```
 
-> 상담 안전·행동 회귀 평가: `make eval`(실제 그래프 — `OPENROUTER_API_KEY`(또는 `LLM_PROVIDER=anthropic` + `ANTHROPIC_API_KEY`) + web(:3000) 필요). 응급 분기·도구 호출·추천 유무를 결정적으로 검증하고, 안전 시나리오 실패 시 비정상 종료합니다.
+> 상담 안전·행동 회귀 평가: `make eval`(실제 그래프 — `OPENROUTER_API_KEY`(또는 `LLM_PROVIDER=anthropic` + `ANTHROPIC_API_KEY`) + web(:3000) 필요). 응급 분기·도구 호출·추천 유무를 결정적으로 검증하고, 안전 시나리오 실패 시 비정상 종료합니다. 다중 턴 시나리오(`turns`)를 지원하며, 리포트 끝에 시나리오별 토큰·비용(원, `USD_KRW` 기본 1400)·메인 호출 수와 턴당 메인 호출 수 분포를 출력합니다. agent `/chat` 스트림은 `done`/`error` 직전에 `usage` 이벤트(모델별 토큰·`cost_usd`)를 보내고 같은 내용을 agent 로그에 JSON 한 줄로 남깁니다.
 
 ## 🗺️ 로드맵
 

@@ -263,3 +263,41 @@ def test_scenarios_include_spec_c1_safety_set_and_4turn():
     for name in ("multiturn_reference", "empty_terms_search", "tool_limit"):
         assert by[name]["category"] == "behavior"
     assert any(len(sc.get("turns", [])) == 4 for sc in SCENARIOS)
+
+
+def _usage_with(main_calls, models):
+    from app.usage import UsageCollector
+    from langchain_core.outputs import ChatGeneration, LLMResult
+    u = UsageCollector()
+    for model, inp, out in models:
+        msg = AIMessage(content="x", usage_metadata={"input_tokens": inp, "output_tokens": out, "total_tokens": inp + out},
+                        response_metadata={"model_name": model})
+        u.on_llm_end(LLMResult(generations=[[ChatGeneration(message=msg)]]))
+    assert u.main_calls("claude-opus-4-8") == main_calls
+    return u
+
+
+def test_format_cost_table_rows_and_call_distribution(monkeypatch):
+    from app.eval.harness import Result, Verdict, Report, format_cost_table
+    monkeypatch.setenv("USD_KRW", "1000")
+    opus = "anthropic/claude-opus-4.8"
+    t1 = _usage_with(2, [(opus, 1000, 100), (opus, 1000, 100), ("anthropic/claude-haiku-4.5", 100, 5)])
+    t2 = _usage_with(1, [(opus, 2000, 100)])
+    emerg = _usage_with(0, [("anthropic/claude-haiku-4.5", 100, 5)])
+    report = Report([
+        Result("consult", "behavior", Verdict(True, []), [t1, t2]),
+        Result("emergency", "safety", Verdict(True, []), [emerg]),
+    ])
+    text = format_cost_table(report, "claude-opus-4-8")
+    row = next(line for line in text.splitlines() if line.startswith("consult"))
+    # 비용(원)은 USD_KRW로 환산, 메인 호출은 3회
+    total_usd = t1.summary()["cost_usd"] + t2.summary()["cost_usd"]
+    assert f"{total_usd * 1000:,.1f}" in row
+    assert " 3 " in row
+    assert "턴별 메인 입력: 2,000 → 2,000" in text
+    assert "턴당 메인 호출 수 분포: 0회×1, 1회×1, 2회×1" in text
+
+
+def test_format_cost_table_empty_without_usages():
+    from app.eval.harness import Result, Verdict, Report, format_cost_table
+    assert format_cost_table(Report([Result("a", "behavior", Verdict(True, []))]), "claude-opus-4-8") == ""
