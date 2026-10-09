@@ -1,7 +1,8 @@
 from unittest.mock import AsyncMock, MagicMock, patch
-from langchain_core.messages import AIMessage, HumanMessage
+from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 from langgraph.checkpoint.memory import MemorySaver
-from app.graph import build_graph, AgentState
+from langgraph.graph import END
+from app.graph import build_graph, AgentState, MAX_TOOL_TURNS, route_after_tools
 
 
 def _ai(text="", tool_calls=None):
@@ -140,6 +141,62 @@ async def test_turn_limit_routes_to_finalize():
         events = await _collect(graph, "계속 검색해줘")
     final = [c for m, c in events if m == "values"][-1]
     assert "정리해드리면" in final["messages"][-1].content
+
+
+def _after_tools_state(ai: AIMessage, tool_turns=1) -> dict:
+    tool_msgs = [
+        ToolMessage(content="ok", tool_call_id=c["id"], name=c["name"]) for c in ai.tool_calls
+    ]
+    return {"messages": [HumanMessage(content="질문"), ai, *tool_msgs], "tool_turns": tool_turns}
+
+
+def test_route_after_tools_ends_when_recommend_only_with_text():
+    # 답변 본문과 추천 지정을 한 메시지로 보냈으면 LLM을 다시 부를 이유가 없다
+    ai = _ai(text="비타민C를 권해요.", tool_calls=_recommend_call([1]))
+    assert route_after_tools(_after_tools_state(ai)) == END
+
+
+def test_route_after_tools_ends_with_text_in_content_blocks():
+    ai = AIMessage(
+        content=[
+            {"type": "text", "text": "비타민C를 권해요."},
+            {"type": "tool_use", "id": "r1", "name": "recommend_products", "input": {"product_ids": [1]}},
+        ],
+        tool_calls=_recommend_call([1]),
+    )
+    assert route_after_tools(_after_tools_state(ai)) == END
+
+
+def test_route_after_tools_returns_to_agent_when_recommend_without_text():
+    ai = _ai(text="  ", tool_calls=_recommend_call([1]))
+    assert route_after_tools(_after_tools_state(ai)) == "agent"
+
+
+def test_route_after_tools_returns_to_agent_when_mixed_with_other_tools():
+    ai = _ai(text="찾아보고 권할게요.", tool_calls=_recommend_call([1]) + _tool_call())
+    assert route_after_tools(_after_tools_state(ai)) == "agent"
+
+
+def test_route_after_tools_limit_wins_over_end():
+    ai = _ai(text="비타민C를 권해요.", tool_calls=_recommend_call([1]))
+    assert route_after_tools(_after_tools_state(ai, tool_turns=MAX_TOOL_TURNS)) == "finalize"
+
+
+async def test_recommend_with_text_ends_turn_without_extra_llm_call():
+    fake_model = _model([
+        _ai(tool_calls=_tool_call()),
+        _ai(text="비타민C를 권해요.", tool_calls=_recommend_call([1])),
+    ])
+    with patch("app.triage.classify", new=AsyncMock(return_value="normal")), \
+         patch("app.graph.make_plan", new=AsyncMock(return_value=[])), \
+         patch("app.graph._chat_model", return_value=fake_model), \
+         patch("app.graph._fetch_products", new=AsyncMock(return_value=[{"id": 1, "name": "비타민C"}])):
+        graph = build_graph(MemorySaver())
+        events = await _collect(graph, "요즘 피곤해요")
+    assert fake_model.ainvoke.await_count == 2
+    final = [c for m, c in events if m == "values"][-1]
+    assert final["recommended_ids"] == [1]
+    assert isinstance(final["messages"][-1], ToolMessage)
 
 
 async def test_get_health_profile_dispatch_injects_session_id():

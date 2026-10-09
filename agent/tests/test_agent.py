@@ -94,3 +94,19 @@ async def test_stream_events_emits_plan_before_tokens():
     assert json.loads(next(e for e in events if e["event"] == "plan")["data"])["steps"] == ["증상 정리"]
     assert types.index("plan") < types.index("token")
     assert types[-1] == "done"
+
+
+async def test_stream_events_separates_text_of_different_ai_messages():
+    # 도구 호출 전 안내문과 도구 이후 답변이 "준비해볼게요.증상 관련…"처럼 붙지 않아야 한다
+    fake_model = _model([
+        _ai(text="준비해볼게요.", tool_calls=[{"name": "search_products", "args": {}, "id": "t1", "type": "tool_call"}]),
+        _ai(text="증상 관련 제품이에요."),
+    ])
+    with patch("app.triage.classify", new=AsyncMock(return_value="normal")), \
+         patch("app.graph.make_plan", new=AsyncMock(return_value=[])), \
+         patch("app.graph._chat_model", return_value=fake_model), \
+         patch("app.graph._fetch_products", new=AsyncMock(return_value=[{"id": 1, "name": "비타민C"}])):
+        graph = build_graph(MemorySaver())
+        events = [e async for e in stream_events(graph, "피곤해요", "sSep")]
+    text = "".join(json.loads(e["data"])["text"] for e in events if e["event"] == "token")
+    assert text == "준비해볼게요.\n\n증상 관련 제품이에요."
