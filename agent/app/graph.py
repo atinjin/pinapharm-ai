@@ -20,6 +20,7 @@ from app.tools import (
     _save_health_profile,
     _fetch_knowledge,
     search_products,
+    recommend_products,
     get_health_profile,
     save_health_profile,
     load_consultation_skill,
@@ -35,6 +36,7 @@ RESPONSE_STYLE = (
     "## 답변 형식\n"
     "- 핵심 결론을 먼저 말하세요.\n"
     "- 추천 제품은 최대 3개, 제품마다 추천 이유는 1~2문장으로 쓰세요.\n"
+    "- 제품을 권할 때는 답변과 함께 recommend_products로 권한 제품만 지정하세요.\n"
     "- 주의사항은 꼭 필요한 것만 짧게 덧붙이세요.\n"
     "- 전체 답변은 대략 600자 이내를 권장합니다."
 )
@@ -48,12 +50,19 @@ FINALIZE_INSTRUCTION = (
     "일반적인 안내와 함께 약사 상담을 권하세요."
 )
 # agent와 finalize가 같은 도구 정의를 보내야 tools 계층 프리픽스가 일치한다
-AGENT_TOOLS = [search_products, get_health_profile, save_health_profile, load_consultation_skill, retrieve_knowledge]
+AGENT_TOOLS = [
+    search_products, recommend_products, get_health_profile, save_health_profile,
+    load_consultation_skill, retrieve_knowledge,
+]
+# 카드는 답변에서 권한 제품만 보여 준다. RESPONSE_STYLE의 "최대 3개"와 맞춘다.
+MAX_RECOMMENDATIONS = 3
 
 
 class AgentState(TypedDict):
     messages: Annotated[list[AnyMessage], add_messages]
     recommended_ids: list[int]
+    # 이번 턴에 search_products로 본 제품 id. recommend_products는 이 안의 id만 카드로 보낸다.
+    seen_product_ids: list[int]
     tool_turns: int
     triage: str
     plan: list
@@ -162,6 +171,7 @@ async def tools_node(state: AgentState, config: RunnableConfig) -> dict:
     session_id = config["configurable"]["thread_id"]
     tool_messages: list[ToolMessage] = []
     ids = list(state["recommended_ids"])
+    seen = list(state.get("seen_product_ids") or [])
     for call in last.tool_calls:
         name = call["name"]
         try:
@@ -169,8 +179,16 @@ async def tools_node(state: AgentState, config: RunnableConfig) -> dict:
                 products = await _fetch_products(**call["args"])
                 content = json.dumps(products, ensure_ascii=False)
                 for p in products:
-                    if isinstance(p, dict) and "id" in p and p["id"] not in ids:
-                        ids.append(p["id"])
+                    if isinstance(p, dict) and "id" in p and p["id"] not in seen:
+                        seen.append(p["id"])
+            elif name == "recommend_products":
+                # 이번 턴 검색 결과에 없는 id(모델이 지어낸 id)는 카드로 보내지 않는다
+                for pid in call["args"].get("product_ids") or []:
+                    if len(ids) >= MAX_RECOMMENDATIONS:
+                        break
+                    if pid in seen and pid not in ids:
+                        ids.append(pid)
+                content = f"추천 카드 {len(ids)}개 표시"
             elif name == "get_health_profile":
                 profile = await _fetch_health_profile(session_id)
                 content = json.dumps(profile, ensure_ascii=False)
@@ -194,6 +212,7 @@ async def tools_node(state: AgentState, config: RunnableConfig) -> dict:
     return {
         "messages": tool_messages,
         "recommended_ids": ids,
+        "seen_product_ids": seen,
         "tool_turns": state["tool_turns"] + 1,
     }
 

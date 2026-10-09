@@ -131,6 +131,14 @@ async def retrieve_knowledge(query: str, k: int = 4) -> list[dict]:
 
 
 @tool
+async def recommend_products(product_ids: list[int]) -> str:
+    """답변에서 실제로 권하는 제품만 카드로 보여 준다. search_products 결과에 있던 제품 id만 넣는다.
+    상호작용·알레르기·금기로 권하지 않은 제품은 넣지 않는다. 최대 3개.
+    (실제 처리는 그래프의 tools_node가 이번 턴에 검색한 제품과 대조해 수행한다.)"""
+    return ""
+
+
+@tool
 async def load_consultation_skill(name: str) -> str:
     """시스템 프롬프트의 '사용 가능한 상담 스킬' 목록에 있는 상담 절차를 name으로 불러온다.
     해당 상담 상황에 들어가면 절차를 따르기 전에 호출해 본문을 확인한다."""

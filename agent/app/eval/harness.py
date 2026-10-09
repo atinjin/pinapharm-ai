@@ -65,7 +65,7 @@ def _observe_state(state) -> Observation:
 async def observe(graph, message: str, session_id: str) -> Observation:
     try:
         state = await graph.ainvoke(
-            {"messages": [HumanMessage(content=message)], "recommended_ids": [], "tool_turns": 0, "triage": ""},
+            {"messages": [HumanMessage(content=message)], "recommended_ids": [], "seen_product_ids": [], "tool_turns": 0, "triage": ""},
             config={"configurable": {"thread_id": session_id}},
         )
     except Exception as e:  # noqa: BLE001 — 한 시나리오 실패가 전체를 막지 않도록

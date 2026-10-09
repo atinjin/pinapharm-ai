@@ -12,6 +12,10 @@ def _tool_call(cond="피로"):
     return [{"name": "search_products", "args": {"condition": cond}, "id": "t1", "type": "tool_call"}]
 
 
+def _recommend_call(ids, id_="r1"):
+    return [{"name": "recommend_products", "args": {"product_ids": ids}, "id": id_, "type": "tool_call"}]
+
+
 def _model(calls):
     # bind_tools가 자기 자신을 반환해야 ainvoke side_effect가 적용된다
     m = AsyncMock()
@@ -30,8 +34,12 @@ async def _collect(graph, message):
 
 
 async def test_normal_flow_runs_tool_then_answers():
-    # triage=normal, agent가 도구 호출 후 답변
-    fake_model = _model([_ai(tool_calls=_tool_call()), _ai(text="비타민C를 추천드려요.")])
+    # triage=normal, agent가 검색 → 추천 지정 후 답변
+    fake_model = _model([
+        _ai(tool_calls=_tool_call()),
+        _ai(tool_calls=_recommend_call([1])),
+        _ai(text="비타민C를 추천드려요."),
+    ])
     with patch("app.triage.classify", new=AsyncMock(return_value="normal")), \
          patch("app.graph.make_plan", new=AsyncMock(return_value=[])), \
          patch("app.graph._chat_model", return_value=fake_model), \
@@ -54,20 +62,65 @@ async def test_emergency_flow_skips_tools():
     assert any(c.get("type") == "emergency" for c in customs)
 
 
-async def test_recommended_ids_dedup_across_turns():
-    fake_model = _model([
-        _ai(tool_calls=_tool_call("피로")),
-        _ai(tool_calls=_tool_call("눈")),
-        _ai(text="추천드립니다."),
-    ])
+async def _run(calls, products, message="피곤하고 눈도 침침"):
+    fake_model = _model(calls)
     with patch("app.triage.classify", new=AsyncMock(return_value="normal")), \
          patch("app.graph.make_plan", new=AsyncMock(return_value=[])), \
          patch("app.graph._chat_model", return_value=fake_model), \
-         patch("app.graph._fetch_products", new=AsyncMock(return_value=[{"id": 1, "name": "A"}])):
+         patch("app.graph._fetch_products", new=AsyncMock(return_value=products)):
         graph = build_graph(MemorySaver())
-        events = await _collect(graph, "피곤하고 눈도 침침")
+        events = await _collect(graph, message)
+    customs = [c for m, c in events if m == "custom" and c.get("type") == "recommendations"]
     final = [c for m, c in events if m == "values"][-1]
-    assert final["recommended_ids"] == [1]  # 두 번 검색해도 중복 없이 1개
+    return customs, final
+
+
+async def test_search_without_recommend_emits_no_recommendations():
+    # 검색 결과는 후보일 뿐 카드가 아니다
+    customs, final = await _run(
+        [_ai(tool_calls=_tool_call("피로")), _ai(tool_calls=_tool_call("눈")), _ai(text="추천드립니다.")],
+        [{"id": 1, "name": "A"}, {"id": 2, "name": "B"}],
+    )
+    assert customs == []
+    assert final["recommended_ids"] == []
+    assert final["seen_product_ids"] == [1, 2]  # 두 번 검색해도 중복 없이
+
+
+async def test_recommend_passes_only_searched_ids():
+    # 오메가3(4)는 검색으로 봤지만 권하지 않았고, 99는 검색에 없던(지어낸) id다
+    customs, final = await _run(
+        [_ai(tool_calls=_tool_call("혈행")), _ai(tool_calls=_recommend_call([5, 99])), _ai(text="5번을 권해요.")],
+        [{"id": 4, "name": "오메가3"}, {"id": 5, "name": "B"}],
+    )
+    assert [c["ids"] for c in customs] == [[5]]
+    assert final["recommended_ids"] == [5]
+
+
+async def test_recommend_before_search_is_ignored():
+    customs, final = await _run(
+        [_ai(tool_calls=_recommend_call([1])), _ai(text="제품을 찾지 못했어요.")],
+        [{"id": 1, "name": "A"}],
+    )
+    assert customs == []
+    assert final["recommended_ids"] == []
+
+
+async def test_recommend_tool_message_is_short():
+    fake = [_ai(tool_calls=_tool_call()), _ai(tool_calls=_recommend_call([1, 2])), _ai(text="두 제품을 권해요.")]
+    _, final = await _run(fake, [{"id": 1, "name": "A"}, {"id": 2, "name": "B"}])
+    msg = next(m for m in final["messages"] if getattr(m, "name", None) == "recommend_products")
+    assert msg.content == "추천 카드 2개 표시"
+
+
+async def test_recommend_caps_at_three_and_dedups():
+    products = [{"id": i, "name": str(i)} for i in range(1, 6)]
+    customs, final = await _run(
+        [_ai(tool_calls=_tool_call()), _ai(tool_calls=_recommend_call([1, 1, 2])),
+         _ai(tool_calls=_recommend_call([3, 4, 5], "r2")), _ai(text="권해요.")],
+        products,
+    )
+    assert [c["ids"] for c in customs] == [[1, 2], [1, 2, 3]]
+    assert final["recommended_ids"] == [1, 2, 3]
 
 
 async def test_turn_limit_routes_to_finalize():
