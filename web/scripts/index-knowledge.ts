@@ -3,6 +3,8 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { prisma } from "../src/lib/prisma";
 import { createDocument } from "../src/lib/knowledge";
+import { reembedOutdatedChunks } from "../src/lib/knowledgeAdmin";
+import { EMBEDDING_MODEL_NAME } from "../src/lib/embeddings";
 
 type Row = {
   원료명: string; 기능성: string; 주의사항: string; 상호작용: string; 일일섭취량: string; 출처: string;
@@ -36,6 +38,12 @@ async function main() {
     console.log(`indexed: ${r.원료명}`);
   }
   console.log(`완료: 생성 ${created} / 건너뜀 ${skipped}`);
+
+  // --reembed: 기존 문서는 위에서 건너뛰므로, 모델 전환 시 다른 모델·stale 청크를 현재 모델로 다시 임베딩
+  if (process.argv.includes("--reembed")) {
+    const r = await reembedOutdatedChunks();
+    console.log(`재임베딩(${EMBEDDING_MODEL_NAME}): 성공 ${r.updated} / 실패 ${r.failed}(stale로 남음)`);
+  }
 }
 
 main().then(() => process.exit(0)).catch((e) => { console.error(e); process.exit(1); });

@@ -162,6 +162,34 @@ export async function reembedDocument(id: number): Promise<void> {
   }
 }
 
+// 모델 전환 재색인: 현재 모델이 아니거나 stale인 문서 청크만 다시 임베딩. 실패 청크는 stale로 표시.
+export async function reembedOutdatedChunks(): Promise<{ updated: number; failed: number }> {
+  const chunks = await prisma.knowledgeChunk.findMany({
+    where: {
+      documentId: { not: null },
+      OR: [{ model: { not: EMBEDDING_MODEL_NAME } }, { embeddingStale: true }],
+    },
+    select: { id: true, text: true },
+  });
+  let updated = 0;
+  let failed = 0;
+  for (const c of chunks) {
+    try {
+      const [v] = await embed([c.text], "document");
+      const embedding = serialize(normalize(v)) as unknown as Uint8Array<ArrayBuffer>;
+      await prisma.knowledgeChunk.update({
+        where: { id: c.id },
+        data: { embedding, model: EMBEDDING_MODEL_NAME, embeddingStale: false },
+      });
+      updated++;
+    } catch {
+      await prisma.knowledgeChunk.update({ where: { id: c.id }, data: { embeddingStale: true } });
+      failed++;
+    }
+  }
+  return { updated, failed };
+}
+
 export type ChunkSearchHit = {
   id: number;
   documentId: number;
