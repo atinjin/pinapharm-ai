@@ -59,7 +59,7 @@ async def test_finalize_system_ends_with_wrapup_instruction():
     bare, _ = await _run_finalize(st)
     system = bare.ainvoke.await_args.args[0][0].content
     assert isinstance(system, str)
-    assert system.startswith("SYS\n\n## 상담 계획")
+    assert system.startswith(f"SYS\n\n{graph.RESPONSE_STYLE}\n\n## 상담 계획")
     assert system.endswith(graph.FINALIZE_INSTRUCTION)
 
 
@@ -175,6 +175,41 @@ async def test_turn_limit_finalize_sees_paired_history():
     bare.ainvoke.assert_awaited_once()
     sent = bare.ainvoke.await_args.args[0]
     assert isinstance(sent[-1], ToolMessage)
+
+
+async def _agent_system(state):
+    m = AsyncMock()
+    m.ainvoke = AsyncMock(return_value=AIMessage(content="네."))
+    m.bind_tools = MagicMock(return_value=m)
+    with patch("app.graph.get_config", new=AsyncMock(return_value={})), \
+         patch("app.graph.build_system_prompt", return_value="SYS"), \
+         patch("app.graph._chat_model", return_value=m):
+        await graph.agent_node(state)
+    return m.ainvoke.await_args.args[0][0].content
+
+
+async def test_response_style_follows_base_prompt_in_agent_and_finalize():
+    # 간결 응답 지시는 어드민 프롬프트 바로 뒤, 상담 계획 앞에 붙는다
+    st = _state([HumanMessage(content="q")])
+    st["plan"] = [{"title": "제품 검색", "tool": "search_products"}]
+    agent_sys = await _agent_system(st)
+    bare, _ = await _run_finalize(st)
+    final_sys = bare.ainvoke.await_args.args[0][0].content
+    expected_head = f"SYS\n\n{graph.RESPONSE_STYLE}\n\n## 상담 계획"
+    assert agent_sys.startswith(expected_head)
+    assert final_sys.startswith(expected_head)
+
+
+async def test_agent_and_finalize_share_prefix_until_wrapup():
+    # 캐시가 맞도록 finalize system은 agent system + FINALIZE_INSTRUCTION이어야 한다
+    for plan in ([], [{"title": "제품 검색", "tool": "search_products"}]):
+        st = _state([HumanMessage(content="q")])
+        st["plan"] = plan
+        agent_sys = await _agent_system(st)
+        bare, _ = await _run_finalize(st)
+        final_sys = bare.ainvoke.await_args.args[0][0].content
+        assert graph.RESPONSE_STYLE in agent_sys
+        assert final_sys == f"{agent_sys}\n\n{graph.FINALIZE_INSTRUCTION}"
 
 
 def test_chat_model_uses_main_max_tokens():

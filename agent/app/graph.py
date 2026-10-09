@@ -30,6 +30,14 @@ MODEL = os.environ.get("ANTHROPIC_MODEL", "claude-opus-4-8")
 MAX_TOOL_TURNS = 4
 # 1,024에서 추천 답변이 문장 중간에 잘린 사례가 있었다
 MAIN_MAX_TOKENS = 2048
+# 상한을 올린 만큼 출력 비용이 늘지 않도록 간결하게 답하게 한다. 어드민 프롬프트와 무관하게 항상 붙는다.
+RESPONSE_STYLE = (
+    "## 답변 형식\n"
+    "- 핵심 결론을 먼저 말하세요.\n"
+    "- 추천 제품은 최대 3개, 제품마다 추천 이유는 1~2문장으로 쓰세요.\n"
+    "- 주의사항은 꼭 필요한 것만 짧게 덧붙이세요.\n"
+    "- 전체 답변은 대략 600자 이내를 권장합니다."
+)
 # finalize는 도구를 쓸 수 없는 마지막 호출이다. 추가 작업을 약속하면 그 약속이 다음 턴까지 이어진다.
 FINALIZE_INSTRUCTION = (
     "## 이번 답변에서 마무리\n"
@@ -131,13 +139,19 @@ def _strip_unanswered(m: AIMessage, answered: set[str]) -> AIMessage | None:
     return m.model_copy(update={"content": content, "tool_calls": tool_calls})
 
 
-async def agent_node(state: AgentState) -> dict:
-    cfg = await get_config()
-    model = _chat_model().bind_tools(AGENT_TOOLS)
-    system = build_system_prompt(cfg)
+def _system_prompt(cfg: dict, state: AgentState) -> str:
+    # agent와 finalize가 공유하는 프리픽스. 순서가 같아야 캐시가 맞는다.
+    system = f"{build_system_prompt(cfg)}\n\n{RESPONSE_STYLE}"
     checklist = _plan_checklist(state)
     if checklist:
         system = f"{system}\n\n{checklist}"
+    return system
+
+
+async def agent_node(state: AgentState) -> dict:
+    cfg = await get_config()
+    model = _chat_model().bind_tools(AGENT_TOOLS)
+    system = _system_prompt(cfg, state)
     resp = await model.ainvoke([SystemMessage(content=system)] + _llm_view(state["messages"]))
     return {"messages": [resp]}
 
@@ -203,12 +217,8 @@ def _finalize_tools() -> list[dict]:
 
 async def finalize_node(state: AgentState) -> dict:
     cfg = await get_config()
-    system = build_system_prompt(cfg)
-    checklist = _plan_checklist(state)
-    if checklist:
-        system = f"{system}\n\n{checklist}"
     # agent와 같은 프리픽스를 유지하도록 끝에 덧붙인다
-    system = f"{system}\n\n{FINALIZE_INSTRUCTION}"
+    system = f"{_system_prompt(cfg, state)}\n\n{FINALIZE_INSTRUCTION}"
     # 이력에 tool 블록이 있으므로 도구 정의는 넘기되, tool_choice none으로 호출은 막는다
     resp = await _chat_model().ainvoke(
         [SystemMessage(content=system)] + _llm_view(state["messages"]),
