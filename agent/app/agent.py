@@ -25,6 +25,8 @@ async def stream_events(graph, message: str, session_id: str) -> AsyncIterator[d
     """그래프 실행을 SSE 이벤트 dict({event, data}) 스트림으로 변환한다."""
     config = {"configurable": {"thread_id": session_id}}
     inp = {"messages": [HumanMessage(content=redact_pii(message))], "recommended_ids": [], "seen_product_ids": [], "tool_turns": 0}
+    # 한 턴에 LLM 호출이 여러 번이면 각 응답 텍스트가 이어 붙으므로, 메시지가 바뀌는 곳에 줄바꿈을 넣는다
+    last_msg_id = None
     try:
         async for mode, chunk in graph.astream(inp, config, stream_mode=["messages", "custom"]):
             if mode == "messages":
@@ -32,6 +34,9 @@ async def stream_events(graph, message: str, session_id: str) -> AsyncIterator[d
                 if meta.get("langgraph_node") in _STREAM_NODES:
                     text = _text_of(msg.content)
                     if text:
+                        if last_msg_id is not None and msg.id != last_msg_id:
+                            text = "\n\n" + text
+                        last_msg_id = msg.id
                         yield {"event": "token", "data": json.dumps({"text": text})}
             elif mode == "custom":
                 t = chunk.get("type")
