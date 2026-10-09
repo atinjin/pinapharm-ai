@@ -28,6 +28,15 @@ from app.tools import (
 
 MODEL = os.environ.get("ANTHROPIC_MODEL", "claude-opus-4-8")
 MAX_TOOL_TURNS = 4
+# finalize는 도구를 쓸 수 없는 마지막 호출이다. 추가 작업을 약속하면 그 약속이 다음 턴까지 이어진다.
+FINALIZE_INSTRUCTION = (
+    "## 이번 답변에서 마무리\n"
+    "이번 턴에는 더 이상 도구를 사용할 수 없습니다(검색·조회·저장 모두 불가). "
+    "지금까지 확인한 결과만으로 이번 답변에서 상담을 마무리하세요. "
+    "\"다시 검색해 보겠습니다\", \"확인해 보겠습니다\", \"기록해 두겠습니다\"처럼 앞으로 할 작업을 약속하지 마세요. "
+    "확인한 제품이 있으면 그중에서 추천하고, 결과가 부족하면 확인된 범위와 한계를 솔직히 말한 뒤 "
+    "일반적인 안내와 함께 약사 상담을 권하세요."
+)
 # agent와 finalize가 같은 도구 정의를 보내야 tools 계층 프리픽스가 일치한다
 AGENT_TOOLS = [search_products, get_health_profile, save_health_profile, load_consultation_skill, retrieve_knowledge]
 
@@ -196,6 +205,8 @@ async def finalize_node(state: AgentState) -> dict:
     checklist = _plan_checklist(state)
     if checklist:
         system = f"{system}\n\n{checklist}"
+    # agent와 같은 프리픽스를 유지하도록 끝에 덧붙인다
+    system = f"{system}\n\n{FINALIZE_INSTRUCTION}"
     # 이력에 tool 블록이 있으므로 도구 정의는 넘기되, tool_choice none으로 호출은 막는다
     resp = await _chat_model().ainvoke(
         [SystemMessage(content=system)] + _llm_view(state["messages"]),
