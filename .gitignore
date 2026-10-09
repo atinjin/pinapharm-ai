@@ -32,3 +32,6 @@ venv/
 
 # agent worktrees / local agent state
 .claude/
+
+# CodeGraph index
+.codegraph/
