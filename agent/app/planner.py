@@ -6,6 +6,7 @@ import re
 from langchain_anthropic import ChatAnthropic
 from langchain_core.messages import SystemMessage, HumanMessage
 
+from app import llm
 from app.config_client import get_config
 from app.prompts import PLAN_SYSTEM
 
@@ -49,7 +50,7 @@ def parse_plan(text: str) -> list[dict]:
 
 
 def _plan_model() -> ChatAnthropic:
-    return ChatAnthropic(model=PLAN_MODEL, max_tokens=256, temperature=0)
+    return llm.chat_model(PLAN_MODEL, max_tokens=256, temperature=0)
 
 
 async def make_plan(message: str) -> list[dict]:

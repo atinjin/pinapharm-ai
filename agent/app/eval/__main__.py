@@ -1,6 +1,7 @@
 """`python -m app.eval` — 실제 그래프로 상담 회귀 평가를 돌린다.
 
-전제: ANTHROPIC_API_KEY(그래프가 Claude 호출) + web(:3000) 실행(도구가 web 내부 API 호출).
+전제: LLM 키(LLM_PROVIDER=openrouter면 OPENROUTER_API_KEY, anthropic이면 ANTHROPIC_API_KEY)
++ web(:3000) 실행(도구가 web 내부 API 호출).
 종료코드: 키 없음 2 · safety 실패 1 · 정상 0.
 """
 import asyncio
@@ -9,19 +10,21 @@ import sys
 
 from dotenv import load_dotenv
 
-load_dotenv()  # agent/.env의 ANTHROPIC_API_KEY 등을 로드 (main.py와 동일)
+load_dotenv()  # agent/.env의 OPENROUTER_API_KEY 등을 로드 (main.py와 동일)
 
 from langgraph.checkpoint.memory import MemorySaver
 
+from app import llm
 from app.graph import build_graph
 from app.eval.harness import run_eval, format_report
 from app.eval.scenarios import SCENARIOS
 
 
 def main() -> int:
-    if not os.environ.get("ANTHROPIC_API_KEY"):
+    key = llm.key_env()
+    if not os.environ.get(key):
         print(
-            "✗ ANTHROPIC_API_KEY 미설정 — eval은 실제 에이전트를 실행하므로 키가 필요합니다.",
+            f"✗ {key} 미설정 — eval은 실제 에이전트를 실행하므로 키가 필요합니다.",
             file=sys.stderr,
         )
         return 2
