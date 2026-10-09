@@ -175,3 +175,11 @@ async def test_turn_limit_finalize_sees_paired_history():
     bare.ainvoke.assert_awaited_once()
     sent = bare.ainvoke.await_args.args[0]
     assert isinstance(sent[-1], ToolMessage)
+
+
+def test_chat_model_uses_main_max_tokens():
+    # 1,024토큰에서 답변이 문장 중간에 잘린 사례가 있어 상한을 2,048로 올린다
+    with patch("app.graph.llm.chat_model") as cm:
+        graph._chat_model()
+    assert graph.MAIN_MAX_TOKENS == 2048
+    assert cm.call_args.kwargs["max_tokens"] == 2048

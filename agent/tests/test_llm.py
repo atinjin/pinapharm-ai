@@ -92,7 +92,7 @@ def test_callers_use_llm_chat_model(monkeypatch):
     assert triage._model() == "M"
     assert planner._plan_model() == "M"
     assert seen == [
-        (graph.MODEL, {"max_tokens": 1024}),
+        (graph.MODEL, {"max_tokens": 2048}),
         (triage.TRIAGE_MODEL, {"max_tokens": 10, "temperature": 0}),
         (planner.PLAN_MODEL, {"max_tokens": 256, "temperature": 0}),
     ]

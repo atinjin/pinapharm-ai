@@ -28,6 +28,8 @@ from app.tools import (
 
 MODEL = os.environ.get("ANTHROPIC_MODEL", "claude-opus-4-8")
 MAX_TOOL_TURNS = 4
+# 1,024에서 추천 답변이 문장 중간에 잘린 사례가 있었다
+MAIN_MAX_TOKENS = 2048
 # finalize는 도구를 쓸 수 없는 마지막 호출이다. 추가 작업을 약속하면 그 약속이 다음 턴까지 이어진다.
 FINALIZE_INSTRUCTION = (
     "## 이번 답변에서 마무리\n"
@@ -50,7 +52,7 @@ class AgentState(TypedDict):
 
 
 def _chat_model() -> ChatAnthropic:
-    return llm.chat_model(MODEL, max_tokens=1024)
+    return llm.chat_model(MODEL, max_tokens=MAIN_MAX_TOKENS)
 
 
 def _last_human_text(state: AgentState) -> str:
