@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { upsertChunk } from "@/lib/knowledge";
-import { embed } from "@/lib/embeddings";
+import { embed, EMBEDDING_MODEL_NAME } from "@/lib/embeddings";
 import { normalize, cosineTopK } from "@/lib/vectors";
 
 // 의미검색 임계값/개수 (정규화 Voyage 벡터 기준, 추후 튜닝 가능)
@@ -88,7 +88,8 @@ function expandQueryTags(q: string): Set<string> {
 async function semanticProductIds(queryText: string, k: number): Promise<number[]> {
   const [qvec] = await embed([queryText], "query");
   const q = normalize(qvec);
-  const chunks = await prisma.knowledgeChunk.findMany({ where: { kind: "product" } });
+  // 질의와 같은 모델의 벡터만 비교한다(모델 전환 중 섞인 벡터는 내적이 무의미)
+  const chunks = await prisma.knowledgeChunk.findMany({ where: { kind: "product", model: EMBEDDING_MODEL_NAME } });
   return cosineTopK(q, chunks as unknown as Array<(typeof chunks)[number] & { embedding: Buffer }>, k)
     .filter((c) => c.score > SEMANTIC_MIN_SCORE)
     .map((c) => Number(c.refId))

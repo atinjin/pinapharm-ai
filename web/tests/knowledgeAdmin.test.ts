@@ -14,6 +14,7 @@ import {
   deleteDocument,
   setReviewed,
   reembedDocument,
+  reembedOutdatedChunks,
   searchChunks,
 } from "@/lib/knowledgeAdmin";
 
@@ -61,6 +62,40 @@ describe("knowledgeAdmin", () => {
     expect(hits[0].documentId).toBe(d.id);
     expect(hits[0].id).toBeGreaterThan(0);
     expect(hits[0].docTitle).toBe("루테인");
+  });
+
+  it("searchChunks는 질의와 다른 모델로 만든 청크를 제외한다", async () => {
+    const d = await createDocument({ title: "루테인", body: "눈 건강 유지" });
+    await prisma.knowledgeChunk.updateMany({ where: { documentId: d.id }, data: { model: "old-model" } });
+    expect(await searchChunks("눈이 침침", 3)).toHaveLength(0);
+  });
+
+  it("reembedOutdatedChunks는 다른 모델·stale 문서 청크만 현재 모델로 다시 임베딩한다", async () => {
+    const old = await createDocument({ title: "구모델", body: "눈 건강" });
+    const stale = await createDocument({ title: "미완", body: "장 건강" });
+    const cur = await createDocument({ title: "최신", body: "뼈 건강" });
+    await prisma.knowledgeChunk.updateMany({ where: { documentId: old.id }, data: { model: "old-model" } });
+    await prisma.knowledgeChunk.updateMany({ where: { documentId: stale.id }, data: { embeddingStale: true } });
+    const mod = await import("@/lib/embeddings");
+    const calls = (mod.embed as ReturnType<typeof vi.fn>).mock.calls.length;
+
+    const res = await reembedOutdatedChunks();
+
+    expect(res).toEqual({ updated: 2, failed: 0 });
+    expect((mod.embed as ReturnType<typeof vi.fn>).mock.calls.length - calls).toBe(2); // 최신 청크는 건드리지 않음
+    const rows = await prisma.knowledgeChunk.findMany({ where: { documentId: { in: [old.id, stale.id, cur.id] } } });
+    expect(rows.every((r) => r.model === "test-model" && !r.embeddingStale)).toBe(true);
+    expect(await searchChunks("눈", 1)).toHaveLength(1);
+  });
+
+  it("reembedOutdatedChunks는 임베딩 실패 청크를 stale로 남기고 failed로 센다", async () => {
+    const d = await createDocument({ title: "구모델", body: "내용" });
+    await prisma.knowledgeChunk.updateMany({ where: { documentId: d.id }, data: { model: "old-model" } });
+    const mod = await import("@/lib/embeddings");
+    (mod.embed as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new Error("429"));
+    expect(await reembedOutdatedChunks()).toEqual({ updated: 0, failed: 1 });
+    const row = await prisma.knowledgeChunk.findFirstOrThrow({ where: { documentId: d.id } });
+    expect(row.embeddingStale).toBe(true);
   });
 
   it("reembedDocument clears stale flag", async () => {
