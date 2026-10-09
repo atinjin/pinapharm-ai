@@ -21,6 +21,7 @@ const TEST_EMBEDDING_MODEL = "test-model";
 // "성분"·"참고"도 테스트가 만들지만 실제 카테고리 이름일 수 있어 남긴다
 const TEST_CATEGORY_NAMES = ["Z카테", "A카테", "구카테", "신카테", "빈카테", "신규"];
 const TEST_PERSONA_VALUES = ["페르소나 v1", "페르소나 v2"];
+const UNSUMMARIZED_TEST_ENTITIES = ["skill", "agentSetting"];
 
 // 삭제 순서(FK 자식 먼저)
 const TABLES = [
@@ -110,8 +111,10 @@ export async function planCleanup(prisma: PrismaClient): Promise<CleanupPlan> {
     .map((c) => c.id);
 
   const settings = (await prisma.agentSetting.findMany({ where: { key: "persona", value: { in: TEST_PERSONA_VALUES } }, select: { key: true } })).map((s) => s.key);
-  const revisions = (await prisma.revision.findMany({ select: { id: true, entityType: true, entityId: true, snapshot: true } }))
+  const revisions = (await prisma.revision.findMany({ select: { id: true, entityType: true, entityId: true, snapshot: true, summary: true } }))
     .filter((r) =>
+      // skills.ts·agentConfig.ts는 항상 summary를 남긴다. 없으면 테스트가 직접 기록한 것이다(지식문서 수정은 실제로도 summary가 없어 제외).
+      (UNSUMMARIZED_TEST_ENTITIES.includes(r.entityType) && r.summary === null) ||
       (r.entityType === "skill" && skillSet.has(Number(r.entityId))) ||
       (r.entityType === "knowledgeDocument" && docSet.has(Number(r.entityId))) ||
       (r.entityType === "agentSetting" && r.entityId === "persona" && TEST_PERSONA_VALUES.includes(personaValue(r.snapshot))))

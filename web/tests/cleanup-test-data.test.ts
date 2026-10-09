@@ -62,7 +62,7 @@ async function seedMixed() {
   // 실제 상담이 오염된 검색 결과로 테스트 제품을 추천한 경우: 추천 행만 지우고 상담은 남긴다
   const pollutedRec = await prisma.recommendation.create({ data: { consultationId: realConsult.id, productId: t.commerceProduct.id } });
   const tRevision = await prisma.revision.create({ data: { entityType: "skill", entityId: String(t.skill.id), snapshot: "{}" } });
-  const realRevision = await prisma.revision.create({ data: { entityType: "skill", entityId: String(real.skill.id), snapshot: "{}" } });
+  const realRevision = await prisma.revision.create({ data: { entityType: "skill", entityId: String(real.skill.id), snapshot: "{}", summary: "수정" } });
   return { real, realChunk, realConsult, realRec, realRevision, t, tChunks, order, tConsult, pollutedRec, tRevision };
 }
 
@@ -140,13 +140,25 @@ describe("planCleanup (dry-run)", () => {
 
   it("테스트가 남긴 persona 설정과 그 revision을 잡는다", async () => {
     await prisma.agentSetting.upsert({ where: { key: "persona" }, update: { value: "페르소나 v2" }, create: { key: "persona", value: "페르소나 v2" } });
-    const rev = await prisma.revision.create({ data: { entityType: "agentSetting", entityId: "persona", snapshot: JSON.stringify({ value: "페르소나 v1" }) } });
-    const realRev = await prisma.revision.create({ data: { entityType: "agentSetting", entityId: "persona", snapshot: JSON.stringify({ value: "친절한 약사" }) } });
+    // rollback.test.ts는 setAgentSettings로 기록하므로 summary가 "수정"이다
+    const rev = await prisma.revision.create({ data: { entityType: "agentSetting", entityId: "persona", snapshot: JSON.stringify({ value: "페르소나 v1" }), summary: "수정" } });
+    const realRev = await prisma.revision.create({ data: { entityType: "agentSetting", entityId: "persona", snapshot: JSON.stringify({ value: "친절한 약사" }), summary: "수정" } });
     const plan = await planCleanup(prisma);
     expect(plan.ids.agentSetting).toEqual(["persona"]);
     expect(plan.ids.revision).toContain(rev.id);
     expect(plan.ids.revision).not.toContain(realRev.id);
     await prisma.agentSetting.delete({ where: { key: "persona" } });
+  });
+
+  it("summary 없이 직접 기록한 skill·agentSetting revision은 테스트가 만든 것이다", async () => {
+    // 실제 코드(skills.ts, agentConfig.ts)는 항상 summary("생성"/"수정")를 남긴다. revisions.test.ts는 남기지 않는다.
+    const skillRev = await prisma.revision.create({ data: { entityType: "skill", entityId: "1", snapshot: JSON.stringify({ body: "v1" }) } });
+    const personaRev = await prisma.revision.create({ data: { entityType: "agentSetting", entityId: "persona", snapshot: JSON.stringify({ value: "약사 페르소나" }) } });
+    // 지식문서 수정(knowledgeAdmin.updateDocument)은 실제로도 summary가 없으므로 이 규칙에서 뺀다
+    const docRev = await prisma.revision.create({ data: { entityType: "knowledgeDocument", entityId: "1", snapshot: "{}" } });
+    const plan = await planCleanup(prisma);
+    expect(plan.ids.revision).toEqual(expect.arrayContaining([skillRev.id, personaRev.id]));
+    expect(plan.ids.revision).not.toContain(docRev.id);
   });
 });
 
