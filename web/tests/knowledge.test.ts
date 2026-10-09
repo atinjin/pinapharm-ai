@@ -41,4 +41,11 @@ describe("knowledge documents + retrieve", () => {
     const hits = await retrieve("눈", 5);
     expect(hits).toHaveLength(0); // 문서 청크만 검색
   });
+
+  it("retrieve는 질의와 다른 모델로 만든 청크를 제외한다", async () => {
+    const d = await createDocument({ title: "루테인", body: "눈 건강 유지에 도움" });
+    await prisma.knowledgeChunk.updateMany({ where: { documentId: d.id }, data: { model: "old-model" } });
+    const hits = await retrieve("눈이 침침", 5);
+    expect(hits).toHaveLength(0);
+  });
 });

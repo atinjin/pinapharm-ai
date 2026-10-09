@@ -63,6 +63,12 @@ describe("knowledgeAdmin", () => {
     expect(hits[0].docTitle).toBe("루테인");
   });
 
+  it("searchChunks는 질의와 다른 모델로 만든 청크를 제외한다", async () => {
+    const d = await createDocument({ title: "루테인", body: "눈 건강 유지" });
+    await prisma.knowledgeChunk.updateMany({ where: { documentId: d.id }, data: { model: "old-model" } });
+    expect(await searchChunks("눈이 침침", 3)).toHaveLength(0);
+  });
+
   it("reembedDocument clears stale flag", async () => {
     const d = await createDocument({ title: "재임베딩", body: "내용" });
     await prisma.knowledgeChunk.updateMany({ where: { documentId: d.id }, data: { embeddingStale: true } });

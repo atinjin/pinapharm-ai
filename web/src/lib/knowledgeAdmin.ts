@@ -176,7 +176,7 @@ export async function searchChunks(query: string, k: number): Promise<ChunkSearc
   const [qv] = await embed([query], "query");
   const q = normalize(qv);
   const chunks = await prisma.knowledgeChunk.findMany({
-    where: { documentId: { not: null }, embeddingStale: false },
+    where: { documentId: { not: null }, embeddingStale: false, model: EMBEDDING_MODEL_NAME },
     include: { document: true },
   });
   const top = cosineTopK(

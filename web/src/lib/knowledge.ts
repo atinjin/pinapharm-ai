@@ -92,12 +92,12 @@ export type KnowledgeHit = {
   documentId: number;
 };
 
-// 질의를 임베딩해 지식 문서 청크(documentId 있음, 임베딩 정상)에서 코사인 top-k. 출처(문서 source) 포함.
+// 질의를 임베딩해 지식 문서 청크(documentId 있음, 임베딩 정상, 같은 모델)에서 코사인 top-k. 출처(문서 source) 포함.
 export async function retrieve(query: string, k: number): Promise<KnowledgeHit[]> {
   const [qvec] = await embed([query], "query");
   const q = normalize(qvec);
   const chunks = await prisma.knowledgeChunk.findMany({
-    where: { documentId: { not: null }, embeddingStale: false },
+    where: { documentId: { not: null }, embeddingStale: false, model: EMBEDDING_MODEL_NAME },
     include: { document: true },
   });
   const top = cosineTopK(
