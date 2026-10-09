@@ -92,9 +92,54 @@ export type KnowledgeHit = {
   documentId: number;
 };
 
+// 끝 한 글자 조사를 떼어 "눈이"→"눈"처럼 본문과 맞춘다
+const JOSA_RE = /(이|가|은|는|을|를|에|의|도|로|와|과)$/;
+
+function queryTerms(query: string): string[] {
+  const terms = new Set<string>();
+  for (const t of query.toLowerCase().split(/[\s.,!?·/()]+/).filter(Boolean)) {
+    terms.add(t);
+    if (t.length >= 2 && JOSA_RE.test(t)) terms.add(t.slice(0, -1));
+  }
+  return [...terms];
+}
+
+// 임베딩 장애 시 폴백: 문서 청크(제목+본문)에 질의 단어가 몇 개 들어 있는지로 top-k.
+// 벡터와 무관하므로 stale·다른 모델 청크도 대상이다. score는 맞은 단어 비율.
+async function retrieveLexical(query: string, k: number): Promise<KnowledgeHit[]> {
+  const terms = queryTerms(query);
+  if (terms.length === 0) return [];
+  const chunks = await prisma.knowledgeChunk.findMany({
+    where: { documentId: { not: null } },
+    include: { document: true },
+  });
+  return chunks
+    .map((c) => {
+      const hay = `${c.document?.title ?? c.title} ${c.text}`.toLowerCase();
+      return { c, score: terms.filter((t) => hay.includes(t)).length / terms.length };
+    })
+    .filter((x) => x.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, k)
+    .map(({ c, score }) => ({
+      title: c.document?.title ?? c.title,
+      text: c.text,
+      source: JSON.parse(c.document?.source || "{}"),
+      score,
+      documentId: c.documentId as number,
+    }));
+}
+
 // 질의를 임베딩해 지식 문서 청크(documentId 있음, 임베딩 정상, 같은 모델)에서 코사인 top-k. 출처(문서 source) 포함.
+// 질의 임베딩이 실패하면(재시도 소진 포함) 어휘 매칭으로 폴백한다. 응답 형태는 같다.
 export async function retrieve(query: string, k: number): Promise<KnowledgeHit[]> {
-  const [qvec] = await embed([query], "query");
+  let qvec: number[];
+  try {
+    [qvec] = await embed([query], "query");
+  } catch (e) {
+    console.error("지식 의미검색 실패 → 어휘 폴백", e);
+    return retrieveLexical(query, k);
+  }
   const q = normalize(qvec);
   const chunks = await prisma.knowledgeChunk.findMany({
     where: { documentId: { not: null }, embeddingStale: false, model: EMBEDDING_MODEL_NAME },
