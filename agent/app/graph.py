@@ -3,7 +3,8 @@ import os
 from typing import Annotated, Literal, TypedDict
 
 from langchain_anthropic import ChatAnthropic
-from langchain_core.messages import AIMessage, AnyMessage, SystemMessage, ToolMessage
+from langchain_anthropic.chat_models import convert_to_anthropic_tool
+from langchain_core.messages import AIMessage, AnyMessage, BaseMessage, SystemMessage, ToolMessage
 from langchain_core.runnables import RunnableConfig
 from langgraph.config import get_stream_writer
 from langgraph.graph import START, END, StateGraph
@@ -27,6 +28,8 @@ from app.tools import (
 
 MODEL = os.environ.get("ANTHROPIC_MODEL", "claude-opus-4-8")
 MAX_TOOL_TURNS = 4
+# agent와 finalize가 같은 도구 정의를 보내야 tools 계층 프리픽스가 일치한다
+AGENT_TOOLS = [search_products, get_health_profile, save_health_profile, load_consultation_skill, retrieve_knowledge]
 
 
 class AgentState(TypedDict):
@@ -77,16 +80,54 @@ def _plan_checklist(state: AgentState) -> str:
     return "\n".join(lines)
 
 
+def _llm_view(messages: list[BaseMessage]) -> list[BaseMessage]:
+    """모델에 보낼 이력 사본. 뒤에 ToolMessage가 없는 tool_use는 tool_calls와 content 블록 모두에서 뺀다.
+
+    langchain-anthropic은 content의 tool_use 블록을 tool_calls와 무관하게 내보내므로 둘 다 지워야 한다.
+    체크포인트 원본은 수정하지 않는다.
+    """
+    answered: set[str] = set()
+    view: list[BaseMessage] = []
+    for m in reversed(messages):
+        if isinstance(m, ToolMessage):
+            answered.add(m.tool_call_id)
+        elif isinstance(m, AIMessage):
+            m = _strip_unanswered(m, answered)
+            if m is None:
+                continue
+        view.append(m)
+    view.reverse()
+    return view
+
+
+def _strip_unanswered(m: AIMessage, answered: set[str]) -> AIMessage | None:
+    blocks = m.content if isinstance(m.content, list) else []
+    call_ids = {c["id"] for c in m.tool_calls} | {
+        b["id"] for b in blocks if isinstance(b, dict) and b.get("type") == "tool_use"
+    }
+    if call_ids <= answered:
+        return m
+    tool_calls = [c for c in m.tool_calls if c["id"] in answered]
+    content = m.content
+    if isinstance(content, list):
+        content = [
+            b for b in content
+            if not (isinstance(b, dict) and b.get("type") == "tool_use" and b.get("id") not in answered)
+        ]
+    if not content and not tool_calls:
+        # 빈 assistant 메시지는 API가 거절하므로 통째로 뺀다
+        return None
+    return m.model_copy(update={"content": content, "tool_calls": tool_calls})
+
+
 async def agent_node(state: AgentState) -> dict:
     cfg = await get_config()
-    model = _chat_model().bind_tools(
-        [search_products, get_health_profile, save_health_profile, load_consultation_skill, retrieve_knowledge]
-    )
+    model = _chat_model().bind_tools(AGENT_TOOLS)
     system = build_system_prompt(cfg)
     checklist = _plan_checklist(state)
     if checklist:
         system = f"{system}\n\n{checklist}"
-    resp = await model.ainvoke([SystemMessage(content=system)] + state["messages"])
+    resp = await model.ainvoke([SystemMessage(content=system)] + _llm_view(state["messages"]))
     return {"messages": [resp]}
 
 
@@ -132,13 +173,21 @@ async def tools_node(state: AgentState, config: RunnableConfig) -> dict:
     }
 
 
-def route_after_agent(state: AgentState) -> Literal["tools", "finalize", "__end__"]:
+def route_after_agent(state: AgentState) -> Literal["tools", "__end__"]:
+    # tool_calls가 있으면 한도와 무관하게 항상 실행해 tool_use/tool_result 짝을 맞춘다
     last = state["messages"][-1]
     if not getattr(last, "tool_calls", None):
         return END
-    if state["tool_turns"] >= MAX_TOOL_TURNS:
-        return "finalize"
     return "tools"
+
+
+def route_after_tools(state: AgentState) -> Literal["agent", "finalize"]:
+    return "finalize" if state["tool_turns"] >= MAX_TOOL_TURNS else "agent"
+
+
+def _finalize_tools() -> list[dict]:
+    # bind_tools와 같은 변환 함수를 써야 payload의 tools 블록이 agent 경로와 같아진다
+    return [convert_to_anthropic_tool(t) for t in AGENT_TOOLS]
 
 
 async def finalize_node(state: AgentState) -> dict:
@@ -147,7 +196,12 @@ async def finalize_node(state: AgentState) -> dict:
     checklist = _plan_checklist(state)
     if checklist:
         system = f"{system}\n\n{checklist}"
-    resp = await _chat_model().ainvoke([SystemMessage(content=system)] + state["messages"])
+    # 이력에 tool 블록이 있으므로 도구 정의는 넘기되, tool_choice none으로 호출은 막는다
+    resp = await _chat_model().ainvoke(
+        [SystemMessage(content=system)] + _llm_view(state["messages"]),
+        tools=_finalize_tools(),
+        tool_choice={"type": "none"},
+    )
     return {"messages": [resp]}
 
 
@@ -171,10 +225,8 @@ def build_graph(checkpointer):
     g.add_edge(START, "triage")
     g.add_conditional_edges("triage", route_triage, {"plan": "plan", "emergency": "emergency"})
     g.add_edge("plan", "agent")
-    g.add_conditional_edges(
-        "agent", route_after_agent, {"tools": "tools", "finalize": "finalize", END: END}
-    )
-    g.add_edge("tools", "agent")
+    g.add_conditional_edges("agent", route_after_agent, {"tools": "tools", END: END})
+    g.add_conditional_edges("tools", route_after_tools, {"agent": "agent", "finalize": "finalize"})
     g.add_edge("finalize", END)
     g.add_edge("emergency", END)
     return g.compile(checkpointer=checkpointer)
