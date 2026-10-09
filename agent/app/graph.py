@@ -3,6 +3,7 @@ import os
 from typing import Annotated, Literal, TypedDict
 
 from langchain_anthropic import ChatAnthropic
+from langchain_anthropic.chat_models import convert_to_anthropic_tool
 from langchain_core.messages import AIMessage, AnyMessage, SystemMessage, ToolMessage
 from langchain_core.runnables import RunnableConfig
 from langgraph.config import get_stream_writer
@@ -27,6 +28,8 @@ from app.tools import (
 
 MODEL = os.environ.get("ANTHROPIC_MODEL", "claude-opus-4-8")
 MAX_TOOL_TURNS = 4
+# agent와 finalize가 같은 도구 정의를 보내야 tools 계층 프리픽스가 일치한다
+AGENT_TOOLS = [search_products, get_health_profile, save_health_profile, load_consultation_skill, retrieve_knowledge]
 
 
 class AgentState(TypedDict):
@@ -79,9 +82,7 @@ def _plan_checklist(state: AgentState) -> str:
 
 async def agent_node(state: AgentState) -> dict:
     cfg = await get_config()
-    model = _chat_model().bind_tools(
-        [search_products, get_health_profile, save_health_profile, load_consultation_skill, retrieve_knowledge]
-    )
+    model = _chat_model().bind_tools(AGENT_TOOLS)
     system = build_system_prompt(cfg)
     checklist = _plan_checklist(state)
     if checklist:
@@ -144,13 +145,23 @@ def route_after_tools(state: AgentState) -> Literal["agent", "finalize"]:
     return "finalize" if state["tool_turns"] >= MAX_TOOL_TURNS else "agent"
 
 
+def _finalize_tools() -> list[dict]:
+    # bind_tools와 같은 변환 함수를 써야 payload의 tools 블록이 agent 경로와 같아진다
+    return [convert_to_anthropic_tool(t) for t in AGENT_TOOLS]
+
+
 async def finalize_node(state: AgentState) -> dict:
     cfg = await get_config()
     system = build_system_prompt(cfg)
     checklist = _plan_checklist(state)
     if checklist:
         system = f"{system}\n\n{checklist}"
-    resp = await _chat_model().ainvoke([SystemMessage(content=system)] + state["messages"])
+    # 이력에 tool 블록이 있으므로 도구 정의는 넘기되, tool_choice none으로 호출은 막는다
+    resp = await _chat_model().ainvoke(
+        [SystemMessage(content=system)] + state["messages"],
+        tools=_finalize_tools(),
+        tool_choice={"type": "none"},
+    )
     return {"messages": [resp]}
 
 

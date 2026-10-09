@@ -31,6 +31,48 @@ def test_route_after_tools_returns_to_agent_below_limit():
     assert route_after_tools(_state([], tool_turns=MAX_TOOL_TURNS - 1)) == "agent"
 
 
+async def _run_finalize(state):
+    bare = AsyncMock()
+    bare.ainvoke = AsyncMock(return_value=AIMessage(content="정리했어요."))
+    with patch("app.graph.get_config", new=AsyncMock(return_value={})), \
+         patch("app.graph.build_system_prompt", return_value="SYS"), \
+         patch("app.graph._chat_model", return_value=bare):
+        out = await graph.finalize_node(state)
+    return bare, out
+
+
+async def test_finalize_passes_agent_tools_with_tool_choice_none():
+    from langchain_anthropic.chat_models import convert_to_anthropic_tool
+    st = _state([HumanMessage(content="q"), AIMessage(content="", tool_calls=[_call()]),
+                 ToolMessage(content="[]", tool_call_id="t1", name="search_products")])
+    bare, out = await _run_finalize(st)
+    kwargs = bare.ainvoke.await_args.kwargs
+    assert kwargs["tool_choice"] == {"type": "none"}
+    assert kwargs["tools"] == [convert_to_anthropic_tool(t) for t in graph.AGENT_TOOLS]
+    assert out["messages"][0].content == "정리했어요."
+
+
+def test_finalize_tools_match_bind_tools_payload():
+    # agent 경로(bind_tools)가 요청에 싣는 tools와 finalize가 넘기는 tools가 같아야 캐시 프리픽스가 맞는다
+    import json
+    from langchain_anthropic import ChatAnthropic
+    bound = ChatAnthropic(model="claude-opus-4-8", api_key="test").bind_tools(graph.AGENT_TOOLS)
+    assert json.dumps(bound.kwargs["tools"], ensure_ascii=False) == \
+        json.dumps(graph._finalize_tools(), ensure_ascii=False)
+    assert "tool_choice" not in bound.kwargs
+
+
+async def test_agent_node_binds_agent_tools():
+    m = AsyncMock()
+    m.ainvoke = AsyncMock(return_value=AIMessage(content="네."))
+    m.bind_tools = MagicMock(return_value=m)
+    with patch("app.graph.get_config", new=AsyncMock(return_value={})), \
+         patch("app.graph.build_system_prompt", return_value="SYS"), \
+         patch("app.graph._chat_model", return_value=m):
+        await graph.agent_node(_state([HumanMessage(content="q")]))
+    assert m.bind_tools.call_args.args[0] == graph.AGENT_TOOLS
+
+
 async def test_turn_limit_finalize_sees_paired_history():
     # 한도 턴: agent 4회 → tools 4회 → finalize 1회. finalize 요청에 짝 없는 tool_use가 없어야 한다.
     bound = AsyncMock()
