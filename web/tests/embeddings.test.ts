@@ -20,6 +20,23 @@ describe("embed (voyage)", () => {
     expect(init.headers.Authorization).toContain("test-key");
   });
 
+  it("EMBEDDING_MODEL이 없으면 기본 모델은 voyage-4-lite", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ data: [{ embedding: [1] }] }) });
+    vi.stubGlobal("fetch", fetchMock);
+    process.env.VOYAGE_API_KEY = "test-key";
+    const prev = process.env.EMBEDDING_MODEL;
+    delete process.env.EMBEDDING_MODEL;
+    vi.resetModules();
+    try {
+      const mod = await import("@/lib/embeddings");
+      await mod.embed(["x"], "query");
+      expect(JSON.parse(fetchMock.mock.calls[0][1].body).model).toBe("voyage-4-lite");
+      expect(mod.EMBEDDING_MODEL_NAME).toBe("voyage-4-lite");
+    } finally {
+      if (prev !== undefined) process.env.EMBEDDING_MODEL = prev;
+    }
+  });
+
   it("throws on non-ok response", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, status: 400, text: async () => "bad" }));
     process.env.VOYAGE_API_KEY = "test-key";

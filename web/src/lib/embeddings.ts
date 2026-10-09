@@ -1,5 +1,5 @@
 const PROVIDER = process.env.EMBEDDING_PROVIDER ?? "voyage";
-const MODEL = process.env.EMBEDDING_MODEL ?? "voyage-3.5-lite";
+const MODEL = process.env.EMBEDDING_MODEL ?? "voyage-4-lite";
 
 // 429·5xx 재시도: 지수 백오프(0.5→1→2초), Retry-After 우선, 총 대기 상한을 넘기면 포기
 const MAX_RETRIES = 3;
