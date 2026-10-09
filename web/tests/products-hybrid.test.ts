@@ -13,6 +13,8 @@ describe("searchProducts hybrid", () => {
 
   beforeEach(async () => {
     await prisma.knowledgeChunk.deleteMany({ where: { kind: "product" } });
+    // 빈 test.db에서 단독 실행돼도 FK가 맞도록 약사 1을 보장(다른 파일 실행 순서에 기대지 않는다)
+    await prisma.pharmacist.upsert({ where: { id: 1 }, update: {}, create: { id: 1, name: "김약사" } });
     const p = await prisma.product.create({
       data: { name: `RAG테스트제품_${Date.now()}`, price: 1000, pharmacistId: 1, description: "기운 보충용", conditionTags: "[]" },
     });
@@ -29,6 +31,12 @@ describe("searchProducts hybrid", () => {
     // '축 처지고'는 동의어 사전·부분일치로 이 제품을 못 잡지만, 의미검색이 잡아야 한다
     const results = await searchProducts({ condition: "축 처지고" });
     expect(results.some((r) => r.id === productId)).toBe(true);
+  });
+
+  it("다른 모델로 만든 제품 벡터는 의미검색에서 제외한다", async () => {
+    await prisma.knowledgeChunk.updateMany({ where: { kind: "product" }, data: { model: "old-model" } });
+    const results = await searchProducts({ condition: "축 처지고" });
+    expect(results.some((r) => r.id === productId)).toBe(false);
   });
 
   it("falls back to lexical when embedding throws (no crash)", async () => {
