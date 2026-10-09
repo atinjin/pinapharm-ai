@@ -225,8 +225,28 @@ def route_after_agent(state: AgentState) -> Literal["tools", "__end__"]:
     return "tools"
 
 
-def route_after_tools(state: AgentState) -> Literal["agent", "finalize"]:
-    return "finalize" if state["tool_turns"] >= MAX_TOOL_TURNS else "agent"
+def _has_text(m: AIMessage) -> bool:
+    if isinstance(m.content, str):
+        return bool(m.content.strip())
+    return any(
+        isinstance(b, dict) and b.get("type") == "text" and b.get("text", "").strip()
+        for b in m.content
+    )
+
+
+def route_after_tools(state: AgentState) -> Literal["agent", "finalize", "__end__"]:
+    if state["tool_turns"] >= MAX_TOOL_TURNS:
+        return "finalize"
+    # 답변 본문과 추천 지정을 한 메시지로 보냈으면 이미 답했다. 다시 부르면 군더더기 문장만 덧붙는다.
+    last_ai = next((m for m in reversed(state["messages"]) if isinstance(m, AIMessage)), None)
+    if (
+        last_ai is not None
+        and last_ai.tool_calls
+        and all(c["name"] == "recommend_products" for c in last_ai.tool_calls)
+        and _has_text(last_ai)
+    ):
+        return END
+    return "agent"
 
 
 def _finalize_tools() -> list[dict]:
@@ -268,7 +288,7 @@ def build_graph(checkpointer):
     g.add_conditional_edges("triage", route_triage, {"plan": "plan", "emergency": "emergency"})
     g.add_edge("plan", "agent")
     g.add_conditional_edges("agent", route_after_agent, {"tools": "tools", END: END})
-    g.add_conditional_edges("tools", route_after_tools, {"agent": "agent", "finalize": "finalize"})
+    g.add_conditional_edges("tools", route_after_tools, {"agent": "agent", "finalize": "finalize", END: END})
     g.add_edge("finalize", END)
     g.add_edge("emergency", END)
     return g.compile(checkpointer=checkpointer)
