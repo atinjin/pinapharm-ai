@@ -132,13 +132,16 @@ async def tools_node(state: AgentState, config: RunnableConfig) -> dict:
     }
 
 
-def route_after_agent(state: AgentState) -> Literal["tools", "finalize", "__end__"]:
+def route_after_agent(state: AgentState) -> Literal["tools", "__end__"]:
+    # tool_calls가 있으면 한도와 무관하게 항상 실행해 tool_use/tool_result 짝을 맞춘다
     last = state["messages"][-1]
     if not getattr(last, "tool_calls", None):
         return END
-    if state["tool_turns"] >= MAX_TOOL_TURNS:
-        return "finalize"
     return "tools"
+
+
+def route_after_tools(state: AgentState) -> Literal["agent", "finalize"]:
+    return "finalize" if state["tool_turns"] >= MAX_TOOL_TURNS else "agent"
 
 
 async def finalize_node(state: AgentState) -> dict:
@@ -171,10 +174,8 @@ def build_graph(checkpointer):
     g.add_edge(START, "triage")
     g.add_conditional_edges("triage", route_triage, {"plan": "plan", "emergency": "emergency"})
     g.add_edge("plan", "agent")
-    g.add_conditional_edges(
-        "agent", route_after_agent, {"tools": "tools", "finalize": "finalize", END: END}
-    )
-    g.add_edge("tools", "agent")
+    g.add_conditional_edges("agent", route_after_agent, {"tools": "tools", END: END})
+    g.add_conditional_edges("tools", route_after_tools, {"agent": "agent", "finalize": "finalize"})
     g.add_edge("finalize", END)
     g.add_edge("emergency", END)
     return g.compile(checkpointer=checkpointer)
