@@ -110,3 +110,70 @@ async def test_stream_events_separates_text_of_different_ai_messages():
         events = [e async for e in stream_events(graph, "피곤해요", "sSep")]
     text = "".join(json.loads(e["data"])["text"] for e in events if e["event"] == "token")
     assert text == "준비해볼게요.\n\n증상 관련 제품이에요."
+
+
+def _llm_result(model, inp, out, **details):
+    from langchain_core.outputs import ChatGeneration, LLMResult
+    usage = {"input_tokens": inp, "output_tokens": out, "total_tokens": inp + out, "input_token_details": details}
+    msg = AIMessage(content="x", usage_metadata=usage, response_metadata={"model_name": model})
+    return LLMResult(generations=[[ChatGeneration(message=msg)]])
+
+
+class _UsageGraph:
+    """config로 받은 콜백에 사용량을 보고하는 가짜 그래프. fail이면 보고 후 예외를 던진다."""
+
+    def __init__(self, fail=False):
+        self.fail = fail
+        self.config = None
+
+    async def astream(self, inp, config, stream_mode):
+        self.config = config
+        for h in config.get("callbacks") or []:
+            h.on_llm_end(_llm_result("anthropic/claude-opus-4.8", 1000, 100, cache_read=400, cache_creation=0,
+                                     ephemeral_5m_input_tokens=300, ephemeral_1h_input_tokens=0))
+        yield "custom", {"type": "plan", "steps": []}
+        if self.fail:
+            raise RuntimeError("boom")
+
+
+async def test_stream_events_passes_callbacks_and_emits_usage_before_done():
+    g = _UsageGraph()
+    events = [e async for e in stream_events(g, "피곤해요", "sU")]
+    assert g.config["configurable"] == {"thread_id": "sU"}
+    types = [e["event"] for e in events]
+    assert types[-2:] == ["usage", "done"]
+    usage = json.loads(events[-2]["data"])
+    opus = usage["models"]["claude-opus-4-8"]
+    assert opus["calls"] == 1
+    assert (opus["input"], opus["cache_read"], opus["cache_write_5m"], opus["output"]) == (300, 400, 300, 100)
+    assert usage["cost_usd"] > 0
+
+
+async def test_stream_events_emits_usage_before_error():
+    events = [e async for e in stream_events(_UsageGraph(fail=True), "피곤해요", "sUe")]
+    assert [e["event"] for e in events][-2:] == ["usage", "error"]
+
+
+async def test_stream_events_logs_usage_as_json_line(caplog):
+    import logging
+    with caplog.at_level(logging.INFO, logger="agent.usage"):
+        async for _ in stream_events(_UsageGraph(), "피곤해요", "sLog"):
+            pass
+    line = next(r.getMessage() for r in caplog.records if r.name == "agent.usage")
+    data = json.loads(line)
+    assert data["session_id"] == "sLog"
+    assert data["status"] == "done"
+    assert "claude-opus-4-8" in data["models"]
+
+
+async def test_stream_events_without_usage_omits_event():
+    # mock 모델은 usage_metadata가 없으므로 usage 이벤트가 없어야 하고 done이 마지막이다
+    fake_model = _model([_ai(text="도와드릴게요.")])
+    with patch("app.triage.classify", new=AsyncMock(return_value="normal")), \
+         patch("app.graph.make_plan", new=AsyncMock(return_value=[])), \
+         patch("app.graph._chat_model", return_value=fake_model):
+        graph = build_graph(MemorySaver())
+        events = [e async for e in stream_events(graph, "피곤해요", "sNoU")]
+    types = [e["event"] for e in events]
+    assert "usage" not in types
+    assert types[-1] == "done"

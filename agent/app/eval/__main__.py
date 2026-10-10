@@ -15,9 +15,10 @@ load_dotenv()  # agent/.env의 OPENROUTER_API_KEY 등을 로드 (main.py와 동�
 from langgraph.checkpoint.memory import MemorySaver
 
 from app import llm
-from app.graph import build_graph
-from app.eval.harness import run_eval, format_report
+from app.graph import MODEL, build_graph
+from app.eval.harness import run_eval, format_report, format_cost_table
 from app.eval.scenarios import SCENARIOS
+from app.usage import UsageCollector
 
 
 def main() -> int:
@@ -30,8 +31,11 @@ def main() -> int:
         return 2
     print("eval 실행 중… (web(:3000) 미실행 시 behavior 시나리오는 도구 결과 없이 실패할 수 있음)\n")
     graph = build_graph(MemorySaver())
-    report = asyncio.run(run_eval(graph, SCENARIOS))
+    # 턴마다 새 수집기를 붙여 시나리오별 비용과 턴당 메인 호출 수를 잰다
+    report = asyncio.run(run_eval(graph, SCENARIOS, usage_factory=UsageCollector))
     print(format_report(report))
+    print()
+    print(format_cost_table(report, MODEL))
     return 1 if report.safety_failed else 0
 
 

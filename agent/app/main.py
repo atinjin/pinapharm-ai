@@ -18,6 +18,13 @@ from app.config_client import get_config
 from app.schemas import ChatRequest, SkillDryrunRequest
 
 logger = logging.getLogger("agent.main")
+# 루트 로거 기본 수준(WARNING)에서는 INFO인 사용량 원장 줄이 버려지므로 agent 로그(stderr)로 직접 내보낸다
+_usage_log = logging.getLogger("agent.usage")
+if not _usage_log.handlers:
+    _h = logging.StreamHandler()
+    _h.setFormatter(logging.Formatter("%(asctime)s usage %(message)s"))
+    _usage_log.addHandler(_h)
+    _usage_log.setLevel(logging.INFO)
 DB_PATH = os.environ.get("AGENT_MEMORY_DB", "agent_memory.sqlite")
 
 
