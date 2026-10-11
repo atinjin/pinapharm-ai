@@ -1,0 +1,4 @@
+# Huly 프로젝트 좌표 (비밀값 아님, 커밋한다). huly-agent가 읽는다.
+HULY_URL=http://localhost:8087
+HULY_WORKSPACE=pinapharm
+HULY_PROJECT=PINA
