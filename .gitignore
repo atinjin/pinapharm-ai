@@ -35,3 +35,6 @@ venv/
 
 # CodeGraph index
 .codegraph/
+
+# 봇 worktree 포트 설정
+.ports.mk

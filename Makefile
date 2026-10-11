@@ -8,8 +8,10 @@
 
 WEB_DIR   := web
 AGENT_DIR := agent
-WEB_PORT  := 3000
-AGENT_PORT:= 8000
+# 봇 worktree는 .ports.mk(gitignore)로 포트를 바꿔 본 작업 폴더의 서버(3000·8000)와 겹치지 않게 한다
+-include .ports.mk
+WEB_PORT  ?= 3000
+AGENT_PORT?= 8000
 PID_DIR   := .pids
 LOG_DIR   := .logs
 
@@ -41,7 +43,7 @@ web:
 	@if lsof -ti:$(WEB_PORT) >/dev/null 2>&1; then \
 		echo "• web 이미 실행 중 (:$(WEB_PORT))"; \
 	else \
-		nohup npm --prefix $(WEB_DIR) run dev > $(LOG_DIR)/web.log 2>&1 & echo $$! > $(PID_DIR)/web.pid; \
+		nohup npm --prefix $(WEB_DIR) run dev -- -p $(WEB_PORT) > $(LOG_DIR)/web.log 2>&1 & echo $$! > $(PID_DIR)/web.pid; \
 		echo "• web 시작 (pid $$(cat $(PID_DIR)/web.pid)) → $(LOG_DIR)/web.log"; \
 	fi
 
