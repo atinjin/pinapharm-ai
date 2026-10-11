@@ -15,9 +15,9 @@
 - Next.js 16 async params: `{ params }: { params: Promise<{ id: string }> }` → `const { id } = await params`.
 - 어드민 API 인증 없음(로드맵 A).
 - 커밋 말미 `Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>`. `--no-verify` 금지.
-- 테스트: `cd /Users/atinjin/repository/pham-consult/web && npm test`.
-- 타입검사: `cd /Users/atinjin/repository/pham-consult/web && npx tsc --noEmit`.
-- Git은 **repo root** `/Users/atinjin/repository/pham-consult`에서 실행.
+- 테스트: `cd /Users/atinjin/repository/pinapharm-ai/web && npm test`.
+- 타입검사: `cd /Users/atinjin/repository/pinapharm-ai/web && npx tsc --noEmit`.
+- Git은 **repo root** `/Users/atinjin/repository/pinapharm-ai`에서 실행.
 - 전체 테스트 통과 수가 114개 이상이어야 함(기존 114 + 신규).
 
 ## File Map
@@ -81,7 +81,7 @@
 - [ ] **Step 2: 마이그레이션 실행**
 
 ```bash
-cd /Users/atinjin/repository/pham-consult/web
+cd /Users/atinjin/repository/pinapharm-ai/web
 npx prisma migrate dev --name order_shipping_fields
 ```
 
@@ -90,7 +90,7 @@ Expected: "The following migration(s) have been created and applied" — NOT "re
 - [ ] **Step 3: tsc 확인**
 
 ```bash
-cd /Users/atinjin/repository/pham-consult/web
+cd /Users/atinjin/repository/pinapharm-ai/web
 npx tsc --noEmit
 ```
 
@@ -99,7 +99,7 @@ Expected: no errors.
 - [ ] **Step 4: 커밋**
 
 ```bash
-cd /Users/atinjin/repository/pham-consult
+cd /Users/atinjin/repository/pinapharm-ai
 git add web/prisma/schema.prisma web/prisma/migrations/
 git commit -m "feat(commerce): Order 배송 컬럼 추가(carrier·trackingNumber·shippedAt·deliveredAt)
 
@@ -384,7 +384,7 @@ describe("placeOrder + zipcode", () => {
 - [ ] **Step 2: 실패 확인**
 
 ```bash
-cd /Users/atinjin/repository/pham-consult/web
+cd /Users/atinjin/repository/pinapharm-ai/web
 npm test -- shipping
 ```
 
@@ -521,7 +521,7 @@ export async function getOrderAdmin(id: number) {
 - [ ] **Step 4: 테스트 통과 확인**
 
 ```bash
-cd /Users/atinjin/repository/pham-consult/web
+cd /Users/atinjin/repository/pinapharm-ai/web
 npm test -- shipping
 ```
 
@@ -544,7 +544,7 @@ Expected: no errors.
 - [ ] **Step 6: 커밋**
 
 ```bash
-cd /Users/atinjin/repository/pham-consult
+cd /Users/atinjin/repository/pinapharm-ai
 git add web/src/lib/orders.ts web/tests/shipping.test.ts
 git commit -m "feat(commerce): 배송 도메인(computeShipping 도서산간·markShipped/Delivered·listOrders·trackingUrl)
 
@@ -720,7 +720,7 @@ describe("POST /api/admin/orders/[id]/deliver", () => {
 - [ ] **Step 2: 실패 확인**
 
 ```bash
-cd /Users/atinjin/repository/pham-consult/web
+cd /Users/atinjin/repository/pinapharm-ai/web
 npm test -- orders-admin-api
 ```
 
@@ -825,7 +825,7 @@ export async function POST(
 - [ ] **Step 7: 테스트 통과 확인**
 
 ```bash
-cd /Users/atinjin/repository/pham-consult/web
+cd /Users/atinjin/repository/pinapharm-ai/web
 npm test -- orders-admin-api
 ```
 
@@ -843,7 +843,7 @@ Expected: tsc clean, 전체 green (130+ tests).
 - [ ] **Step 9: 커밋**
 
 ```bash
-cd /Users/atinjin/repository/pham-consult
+cd /Users/atinjin/repository/pinapharm-ai
 git add web/src/app/api/admin/orders/ web/tests/orders-admin-api.test.ts
 git commit -m "feat(commerce): 어드민 주문 API(목록·상세·ship·deliver)
 
@@ -1252,7 +1252,7 @@ export default function AdminOrdersPage() {
 - [ ] **Step 5: tsc 확인**
 
 ```bash
-cd /Users/atinjin/repository/pham-consult/web
+cd /Users/atinjin/repository/pinapharm-ai/web
 npx tsc --noEmit
 ```
 
@@ -1269,7 +1269,7 @@ Expected: 모두 green.
 - [ ] **Step 7: 커밋**
 
 ```bash
-cd /Users/atinjin/repository/pham-consult
+cd /Users/atinjin/repository/pinapharm-ai
 git add web/src/components/AdminNav.tsx web/src/app/admin/orders/ web/src/components/AdminOrderItem.tsx web/src/components/store/CartPanel.tsx
 git commit -m "feat(web): 주문 관리 어드민 탭 + AdminOrderItem + CartPanel 도서산간 안내
 
@@ -1301,7 +1301,7 @@ Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 - [ ] **Step 2: 커밋**
 
 ```bash
-cd /Users/atinjin/repository/pham-consult
+cd /Users/atinjin/repository/pinapharm-ai
 git add docs/ROADMAP.md
 git commit -m "docs(commerce): E3 배송 완료 반영
 

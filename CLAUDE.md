@@ -6,7 +6,7 @@
 
 - 좌표: `.plane/config` — 워크스페이스 `atinova`, 프로젝트 `PINAPM`(작업 키 `PINAPM-<번호>`).
 - 2026-10-10에 이전 워크스페이스 `pina-pharm`(프로젝트 `PINAPHARM`)에서 옮겨 왔다. 번호는 그대로라 커밋 메시지의 `PINAPHARM-N`은 `PINAPM-N`과 같은 작업이다.
-- 봇 worktree: `/Users/atinjin/repository/pham-consult-wt/<봇>`. 새 worktree는 `.plane/worktree-setup.sh`가 `agent/.env`·`web/.env`·`web/prisma/dev.db`를 복사하고 `uv sync`(Python 3.13)·`npm ci`·`prisma generate`를 실행한다.
+- 봇 worktree: `/Users/atinjin/repository/pinapharm-ai-wt/<봇>`. 새 worktree는 `.plane/worktree-setup.sh`가 `agent/.env`·`web/.env`·`web/prisma/dev.db`를 복사하고 `uv sync`(Python 3.13)·`npm ci`·`prisma generate`를 실행한다.
 - dev-bot 담당 범위는 `web/`, `agent/`.
 
 ### 이 저장소의 작업 규칙

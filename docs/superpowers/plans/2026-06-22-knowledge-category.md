@@ -14,9 +14,9 @@
 - Next.js 16 async params: `{ params }: { params: Promise<{ id: string }> }` → `const { id } = await params`.
 - 어드민 API 인증 없음 (로드맵 A에서 추가 예정).
 - 커밋 말미: `Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>`. `--no-verify` 금지.
-- 테스트: `cd /Users/atinjin/repository/pham-consult/web && npm test`.
-- tsc: `cd /Users/atinjin/repository/pham-consult/web && npx tsc --noEmit`.
-- Git은 repo root `/Users/atinjin/repository/pham-consult`에서 실행.
+- 테스트: `cd /Users/atinjin/repository/pinapharm-ai/web && npm test`.
+- tsc: `cd /Users/atinjin/repository/pinapharm-ai/web && npx tsc --noEmit`.
+- Git은 repo root `/Users/atinjin/repository/pinapharm-ai`에서 실행.
 - "미분류"는 보호 카테고리 — 삭제·이름 변경 불가.
 - 기존 테스트 156개 전체 유지.
 
@@ -66,7 +66,7 @@ model KnowledgeCategory {
 - [ ] **Step 2: 마이그레이션 실행**
 
 ```bash
-cd /Users/atinjin/repository/pham-consult/web
+cd /Users/atinjin/repository/pinapharm-ai/web
 npx prisma migrate dev --name knowledge_category
 ```
 
@@ -103,7 +103,7 @@ Expected: no errors.
 - [ ] **Step 5: 커밋**
 
 ```bash
-cd /Users/atinjin/repository/pham-consult
+cd /Users/atinjin/repository/pinapharm-ai
 git add web/prisma/schema.prisma web/prisma/migrations/
 git commit -m "feat(knowledge): KnowledgeCategory 스키마 + 마이그레이션
 
@@ -303,7 +303,7 @@ describe("deleteCategory", () => {
 - [ ] **Step 2: 실패 확인**
 
 ```bash
-cd /Users/atinjin/repository/pham-consult/web
+cd /Users/atinjin/repository/pinapharm-ai/web
 npm test -- knowledgeCategories
 ```
 
@@ -454,7 +454,7 @@ export async function deleteCategory(id: number): Promise<{ movedCount: number }
 - [ ] **Step 4: 테스트 통과 확인**
 
 ```bash
-cd /Users/atinjin/repository/pham-consult/web
+cd /Users/atinjin/repository/pinapharm-ai/web
 npm test -- knowledgeCategories
 ```
 
@@ -471,7 +471,7 @@ Expected: no errors.
 - [ ] **Step 6: 커밋**
 
 ```bash
-cd /Users/atinjin/repository/pham-consult
+cd /Users/atinjin/repository/pinapharm-ai
 git add web/src/lib/knowledgeCategories.ts web/tests/knowledgeCategories.test.ts
 git commit -m "feat(knowledge): 카테고리 도메인(listCategories·create·update·delete)
 
@@ -665,7 +665,7 @@ describe("DELETE /api/admin/knowledge-categories/[id]", () => {
 - [ ] **Step 2: 실패 확인**
 
 ```bash
-cd /Users/atinjin/repository/pham-consult/web
+cd /Users/atinjin/repository/pinapharm-ai/web
 npm test -- knowledge-categories-api
 ```
 
@@ -760,7 +760,7 @@ export async function DELETE(
 - [ ] **Step 5: 테스트 통과 확인**
 
 ```bash
-cd /Users/atinjin/repository/pham-consult/web
+cd /Users/atinjin/repository/pinapharm-ai/web
 npm test -- knowledge-categories-api
 ```
 
@@ -778,7 +778,7 @@ Expected: 전체 green (169+ tests), tsc clean.
 - [ ] **Step 7: 커밋**
 
 ```bash
-cd /Users/atinjin/repository/pham-consult
+cd /Users/atinjin/repository/pinapharm-ai
 git add web/src/app/api/admin/knowledge-categories/ web/tests/knowledge-categories-api.test.ts
 git commit -m "feat(knowledge): 카테고리 API(GET·POST·PUT·DELETE)
 
@@ -1251,7 +1251,7 @@ import { AdminCategoryManager } from "@/components/AdminCategoryManager";
 - [ ] **Step 4: tsc 확인**
 
 ```bash
-cd /Users/atinjin/repository/pham-consult/web
+cd /Users/atinjin/repository/pinapharm-ai/web
 npx tsc --noEmit
 ```
 
@@ -1268,7 +1268,7 @@ Expected: 전체 green (169+ tests).
 - [ ] **Step 6: 커밋**
 
 ```bash
-cd /Users/atinjin/repository/pham-consult
+cd /Users/atinjin/repository/pinapharm-ai
 git add web/src/components/AdminCategoryManager.tsx web/src/components/AdminKnowledgeForm.tsx web/src/app/admin/knowledge/page.tsx
 git commit -m "feat(knowledge): 카테고리 관리 UI + 문서 폼/필터 드롭다운 전환
 

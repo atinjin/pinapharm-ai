@@ -1,4 +1,4 @@
-# pham-consult — 개발 서버 실행/중지
+# pinapharm-ai — 개발 서버 실행/중지
 #   make start    두 서버(web+agent) 백그라운드 실행
 #   make stop     두 서버 중지
 #   make restart  재시작
@@ -20,7 +20,7 @@ LOG_DIR   := .logs
 .PHONY: help start stop restart status logs web agent setup eval
 
 help:
-	@echo "pham-consult 개발 서버"
+	@echo "pinapharm-ai 개발 서버"
 	@echo "  make start    web(:$(WEB_PORT)) + agent(:$(AGENT_PORT)) 실행"
 	@echo "  make stop     두 서버 중지"
 	@echo "  make restart  재시작"

@@ -1,6 +1,6 @@
 # AI 상담 비용 통제 설계 스펙 (초안)
 
-- 대상: pham-consult (web: Next.js 16 + Prisma/SQLite, agent: FastAPI + LangGraph + langchain-anthropic 1.4.6)
+- 대상: pinapharm-ai (web: Next.js 16 + Prisma/SQLite, agent: FastAPI + LangGraph + langchain-anthropic 1.4.6)
 - 전제: 사업 모델 A(단일 약국 자체 스토어) 승인. 1순위 과제는 AI 상담 비용 통제다.
 - 작성 기준일: 2026-10-09. 코드는 수정하지 않았다(읽기만 했다).
 
